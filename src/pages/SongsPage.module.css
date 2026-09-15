@@ -1,0 +1,159 @@
+.section {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.tools {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.search {
+  flex: 1;
+  /* min-width の既定値 auto だと中身の幅より縮まず、右の select を画面外へ押し出してしまう */
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--stage2);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--mute);
+}
+
+.icon {
+  font-size: 14px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  color: var(--paper);
+  font: inherit;
+  padding: 10px 0;
+  outline: none;
+}
+
+.tools select {
+  flex: none;
+  background: var(--stage2);
+  color: var(--paper);
+  border: 0;
+  border-radius: 8px;
+  padding: 0 10px;
+  font: inherit;
+}
+
+.empty {
+  color: var(--mute);
+  padding: 30px 0;
+  text-align: center;
+}
+
+.error {
+  color: var(--tape);
+  background: rgba(200, 85, 61, 0.18);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 720px;
+  margin: 0 auto 16px;
+}
+
+.songs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.songs > li {
+  border-bottom: 1px solid var(--stage2);
+}
+
+.songRow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 80px 44px;
+  gap: 12px;
+  align-items: center;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  padding: 12px 2px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.name {
+  font-weight: 700;
+  font-size: 17px;
+  min-width: 0;
+}
+
+.last {
+  display: block;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--mute);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.bar {
+  height: 6px;
+  background: var(--stage2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  background: var(--tape);
+}
+
+.count {
+  text-align: right;
+  color: var(--mute);
+  font-size: 14px;
+}
+
+.where {
+  padding: 0 0 12px 12px;
+  font-size: 14px;
+  color: #c5cde0;
+}
+
+.where ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.where li {
+  padding: 3px 0;
+}
+
+.where p {
+  margin: 4px 0;
+  color: var(--mute);
+}
+
+.date {
+  color: var(--mute);
+  font-size: 13px;
+  margin-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 420px) {
+  .songRow {
+    grid-template-columns: 1fr 56px 40px;
+    gap: 8px;
+  }
+}
