@@ -1,0 +1,44 @@
+/* 試作版（reference/prototype.jsx）の配色・フォントをそのまま引き継ぐ。
+   個別の見た目は各コンポーネントの *.module.css に置き、ここには全体共通のものだけ書く。 */
+:root {
+  --stage: #1f2a44; /* ステージの紺 */
+  --stage2: #2b3a5c;
+  --paper: #f3f5f8; /* セトリの紙 */
+  --ink: #1c2233;
+  --tape: #e8c547; /* ガムテープの黄 */
+  --mute: #8d9ab5;
+  --warn: #c8553d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--stage);
+  color: var(--paper);
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+}
+
+/* キーボード操作でも今どこにいるか分かるように、フォーカスリングは全体で統一する */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--tape);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

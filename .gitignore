@@ -1,0 +1,18 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+
+# 環境変数は絶対にコミットしない（キー名だけの .env.example のみ追跡する）
+.env*
+!.env.example
+
+logs
+*.log
+npm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+*.tsbuildinfo
