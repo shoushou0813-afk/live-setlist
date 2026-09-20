@@ -62,3 +62,44 @@
     font-size: 32px;
   }
 }
+
+.circle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--paper);
+}
+
+.circle select {
+  background: var(--stage2);
+  color: var(--paper);
+  border: 1.5px solid var(--stage2);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.code {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--mute);
+  letter-spacing: 0.08em;
+}
+
+.join {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-left: 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--mute);
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -30,10 +30,12 @@ export type LiveInput = {
   title: string;
   performedOn: string;
   venue: string;
+  /** 出演バンド名（任意） */
+  band: string;
   songs: string[];
 };
 
-export type ValidationError = { field: 'title' | 'performedOn'; message: string };
+export type ValidationError = { field: 'title' | 'performedOn' | 'band'; message: string };
 
 /** 保存前の入力チェック。DB の check 制約と同じ条件を画面側でも先に見て、往復を減らす。 */
 export function validateLiveInput(input: LiveInput): ValidationError | null {
@@ -46,6 +48,9 @@ export function validateLiveInput(input: LiveInput): ValidationError | null {
   }
   if (input.performedOn === '') {
     return { field: 'performedOn', message: '日付を入力してください。' };
+  }
+  if (input.band.trim().length > 100) {
+    return { field: 'band', message: 'バンド名は100文字までです。' };
   }
   return null;
 }

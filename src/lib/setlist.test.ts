@@ -59,7 +59,7 @@ describe('songTitleKey', () => {
 });
 
 describe('validateLiveInput', () => {
-  const base = { title: '定期ライブ', performedOn: '2026-02-14', venue: '', songs: [] };
+  const base = { title: '定期ライブ', performedOn: '2026-02-14', venue: '', band: '', songs: [] };
 
   it('必須が埋まっていれば null', () => {
     expect(validateLiveInput(base)).toBeNull();
@@ -79,6 +79,11 @@ describe('validateLiveInput', () => {
 
   it('日付が空ならエラー', () => {
     expect(validateLiveInput({ ...base, performedOn: '' })?.field).toBe('performedOn');
+  });
+
+  it('バンド名が 100 文字を超えるとエラー（DB の check 制約と同じ）', () => {
+    expect(validateLiveInput({ ...base, band: 'あ'.repeat(101) })?.field).toBe('band');
+    expect(validateLiveInput({ ...base, band: 'あ'.repeat(100) })).toBeNull();
   });
 });
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { saveLive, type Live } from '../lib/api/lives';
+import { useCircle } from './CircleProvider';
 import { parseSongTitlesFromText, songTitlesToText, validateLiveInput } from '../lib/setlist';
 import styles from './LiveEditor.module.css';
 
@@ -13,9 +14,11 @@ type Props = {
 const today = () => new Date().toISOString().slice(0, 10);
 
 export function LiveEditor({ live, onCancel, onSaved }: Props) {
+  const { current } = useCircle();
   const [title, setTitle] = useState(live?.title ?? '');
   const [performedOn, setPerformedOn] = useState(live?.performedOn ?? today());
   const [venue, setVenue] = useState(live?.venue ?? '');
+  const [band, setBand] = useState(live?.band ?? '');
   // 1 曲ずつモード用。空欄が 1 つあると最初から打ち始められる
   const [songs, setSongs] = useState<string[]>(live?.songs.length ? [...live.songs] : ['']);
   const [bulk, setBulk] = useState(false);
@@ -56,16 +59,28 @@ export function LiveEditor({ live, onCancel, onSaved }: Props) {
 
   const handleSave = async () => {
     const songTitles = bulk ? parseSongTitlesFromText(text) : songs;
-    const invalid = validateLiveInput({ title, performedOn, venue, songs: songTitles });
+    const invalid = validateLiveInput({ title, performedOn, venue, band, songs: songTitles });
     if (invalid) {
       setError(invalid.message);
+      return;
+    }
+    if (!current) {
+      setError('サークルが選ばれていません。ページを再読み込みしてください。');
       return;
     }
 
     setError(null);
     setSaving(true);
     try {
-      await saveLive({ id: live?.id ?? null, title, performedOn, venue, songs: songTitles });
+      await saveLive({
+        id: live?.id ?? null,
+        circleId: current.circleId,
+        title,
+        performedOn,
+        venue,
+        band,
+        songs: songTitles,
+      });
       onSaved();
     } catch (e) {
       console.error(e);
@@ -90,6 +105,16 @@ export function LiveEditor({ live, onCancel, onSaved }: Props) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="例：定期ライブ vol.3"
+            maxLength={100}
+          />
+        </label>
+
+        <label className={styles.field}>
+          出演バンド（任意）
+          <input
+            value={band}
+            onChange={(e) => setBand(e.target.value)}
+            placeholder="例：ゆうやけシグナル"
             maxLength={100}
           />
         </label>
