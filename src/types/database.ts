@@ -13,73 +13,148 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
-      lives: {
+      circles: {
         Row: {
           id: string;
-          user_id: string;
-          title: string;
-          performed_on: string;
-          venue: string | null;
+          name: string;
+          invite_code: string;
           created_at: string;
         };
         Insert: {
           id?: string;
-          user_id?: string;
-          title: string;
-          performed_on: string;
-          venue?: string | null;
+          name: string;
+          invite_code: string;
           created_at?: string;
         };
         Update: {
           id?: string;
-          user_id?: string;
-          title?: string;
-          performed_on?: string;
-          venue?: string | null;
+          name?: string;
+          invite_code?: string;
           created_at?: string;
         };
         Relationships: [];
       };
+      circle_members: {
+        Row: {
+          circle_id: string;
+          user_id: string;
+          display_name: string;
+          role: string;
+          joined_at: string;
+        };
+        Insert: {
+          circle_id: string;
+          user_id?: string;
+          display_name: string;
+          role?: string;
+          joined_at?: string;
+        };
+        Update: {
+          circle_id?: string;
+          user_id?: string;
+          display_name?: string;
+          role?: string;
+          joined_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'circle_members_circle_id_fkey';
+            columns: ['circle_id'];
+            isOneToOne: false;
+            referencedRelation: 'circles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      lives: {
+        Row: {
+          id: string;
+          circle_id: string;
+          created_by: string | null;
+          title: string;
+          performed_on: string;
+          venue: string | null;
+          band: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          circle_id: string;
+          created_by?: string | null;
+          title: string;
+          performed_on: string;
+          venue?: string | null;
+          band?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          circle_id?: string;
+          created_by?: string | null;
+          title?: string;
+          performed_on?: string;
+          venue?: string | null;
+          band?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'lives_circle_id_fkey';
+            columns: ['circle_id'];
+            isOneToOne: false;
+            referencedRelation: 'circles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       songs: {
         Row: {
           id: string;
-          user_id: string;
+          circle_id: string;
           title: string;
           title_key: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          user_id?: string;
+          circle_id: string;
           title: string;
           created_at?: string;
         };
         Update: {
           id?: string;
-          user_id?: string;
+          circle_id?: string;
           title?: string;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'songs_circle_id_fkey';
+            columns: ['circle_id'];
+            isOneToOne: false;
+            referencedRelation: 'circles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       setlist_items: {
         Row: {
           live_id: string;
           position: number;
           song_id: string;
-          user_id: string;
+          circle_id: string;
         };
         Insert: {
           live_id: string;
           position: number;
           song_id: string;
-          user_id?: string;
+          circle_id: string;
         };
         Update: {
           live_id?: string;
           position?: number;
           song_id?: string;
-          user_id?: string;
+          circle_id?: string;
         };
         Relationships: [
           {
@@ -103,6 +178,7 @@ export type Database = {
       song_stats: {
         Row: {
           id: string | null;
+          circle_id: string | null;
           title: string | null;
           play_count: number | null;
           last_played_on: string | null;
@@ -111,12 +187,31 @@ export type Database = {
       };
     };
     Functions: {
+      create_circle: {
+        Args: {
+          p_name: string;
+          p_display_name: string;
+        };
+        Returns: {
+          circle_id: string;
+          invite_code: string;
+        }[];
+      };
+      join_circle: {
+        Args: {
+          p_invite_code: string;
+          p_display_name: string;
+        };
+        Returns: string;
+      };
       save_live: {
         Args: {
           p_live_id: string | null;
+          p_circle_id: string;
           p_title: string;
           p_performed_on: string;
           p_venue: string | null;
+          p_band: string | null;
           p_songs: string[];
         };
         Returns: string;
