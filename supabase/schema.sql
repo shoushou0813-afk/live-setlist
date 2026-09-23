@@ -57,10 +57,14 @@ create table public.songs (
 
 -- ライブと曲の中間テーブル（曲順つき）
 create table public.setlist_items (
-  live_id    uuid not null references public.lives(id) on delete cascade,
-  position   int  not null check (position >= 1),
-  song_id    uuid not null references public.songs(id) on delete restrict,
-  circle_id  uuid not null references public.circles(id) on delete cascade,
+  live_id        uuid not null references public.lives(id) on delete cascade,
+  position       int  not null check (position >= 1),
+  song_id        uuid not null references public.songs(id) on delete restrict,
+  circle_id      uuid not null references public.circles(id) on delete cascade,
+  -- PA・照明の設定メモ。同じ曲でもライブごとに会場や機材で設定が変わるため、
+  -- 曲マスタ（songs）ではなく「このライブのこの曲」の単位（setlist_items）で持つ
+  pa_note        text check (char_length(pa_note) <= 300),
+  lighting_note  text check (char_length(lighting_note) <= 300),
   primary key (live_id, position)
 );
 
@@ -298,9 +302,13 @@ end;
 $$;
 
 -- ========== 保存用 RPC ==========
--- ライブ本体・曲・曲順を 1 トランザクションで保存する
+-- ライブ本体・曲・曲順・PA/照明メモを 1 トランザクションで保存する
 -- p_live_id が null なら新規作成、あれば更新（曲順は作り直し）
 -- security invoker なので、他サークルの ID を渡しても RLS で弾かれる
+--
+-- p_songs は jsonb の配列。曲名だけでなく PA・照明の設定メモも一緒に運ぶ必要があり、
+-- text[] では 1 曲につき 1 つの値しか持てないため jsonb に変更した：
+--   [{"title": "曲名", "pa_note": "EQ低音+2…", "lighting_note": "赤主体…"}, ...]
 
 create or replace function public.save_live(
   p_live_id      uuid,
@@ -309,7 +317,7 @@ create or replace function public.save_live(
   p_performed_on date,
   p_venue        text,
   p_band         text,
-  p_songs        text[]
+  p_songs        jsonb
 ) returns uuid
 language plpgsql
 security invoker
@@ -317,7 +325,10 @@ set search_path = ''
 as $$
 declare
   v_live_id uuid;
+  v_song    jsonb;
   v_title   text;
+  v_pa      text;
+  v_light   text;
   v_song_id uuid;
   v_pos     int := 0;
 begin
@@ -357,9 +368,11 @@ begin
     delete from public.setlist_items where live_id = v_live_id;
   end if;
 
-  foreach v_title in array coalesce(p_songs, '{}'::text[]) loop
-    v_title := btrim(v_title);
+  for v_song in select jsonb_array_elements(coalesce(p_songs, '[]'::jsonb)) loop
+    v_title := btrim(coalesce(v_song->>'title', ''));
     continue when v_title = '';
+    v_pa    := nullif(btrim(coalesce(v_song->>'pa_note', '')), '');
+    v_light := nullif(btrim(coalesce(v_song->>'lighting_note', '')), '');
 
     insert into public.songs (circle_id, title) values (p_circle_id, v_title)
     on conflict (circle_id, title_key) do nothing;
@@ -369,8 +382,8 @@ begin
      where circle_id = p_circle_id and title_key = lower(v_title);
 
     v_pos := v_pos + 1;
-    insert into public.setlist_items (live_id, position, song_id, circle_id)
-    values (v_live_id, v_pos, v_song_id, p_circle_id);
+    insert into public.setlist_items (live_id, position, song_id, circle_id, pa_note, lighting_note)
+    values (v_live_id, v_pos, v_song_id, p_circle_id, v_pa, v_light);
   end loop;
 
   return v_live_id;
@@ -383,10 +396,10 @@ $$;
 revoke execute on function public.generate_invite_code() from public, anon;
 revoke execute on function public.create_circle(text, text) from public, anon;
 revoke execute on function public.join_circle(text, text) from public, anon;
-revoke execute on function public.save_live(uuid, uuid, text, date, text, text, text[]) from public, anon;
+revoke execute on function public.save_live(uuid, uuid, text, date, text, text, jsonb) from public, anon;
 
 grant execute on function public.is_circle_member(uuid) to authenticated;
 grant execute on function public.is_circle_admin(uuid) to authenticated;
 grant execute on function public.create_circle(text, text) to authenticated;
 grant execute on function public.join_circle(text, text) to authenticated;
-grant execute on function public.save_live(uuid, uuid, text, date, text, text, text[]) to authenticated;
+grant execute on function public.save_live(uuid, uuid, text, date, text, text, jsonb) to authenticated;

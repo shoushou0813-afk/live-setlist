@@ -76,7 +76,17 @@ export function LivesPage() {
                       <ol className={styles.songs}>
                         {live.songs.map((song, index) => (
                           // 同じライブで同じ曲を 2 回演奏することがあるので、曲名ではなく曲順をキーにする
-                          <li key={`${index}-${song}`}>{song}</li>
+                          <li key={`${index}-${song.title}`}>
+                            {song.title}
+                            {/* PA・照明班向けのメモ。入っているときだけ小さく添える */}
+                            {(song.paNote ?? song.lightingNote) && (
+                              <span className={styles.songNote}>
+                                {song.paNote && `PA: ${song.paNote}`}
+                                {song.paNote && song.lightingNote && ' ／ '}
+                                {song.lightingNote && `照明: ${song.lightingNote}`}
+                              </span>
+                            )}
+                          </li>
                         ))}
                       </ol>
                     )}

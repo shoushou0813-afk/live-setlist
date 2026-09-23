@@ -26,16 +26,73 @@ export function songTitleKey(title: string): string {
   return title.trim().toLowerCase();
 }
 
+/**
+ * 「1曲ずつ」モードで扱う 1 曲分の入力。
+ * PA・照明の設定メモは、同じ曲でも会場や機材でやり方が変わるため曲マスタではなく
+ * 「このライブのこの曲」単位（＝この入力）で持つ。
+ */
+export type SetlistSongInput = {
+  title: string;
+  /** PA 班向けの音響設定メモ（任意） */
+  paNote: string;
+  /** 照明班向けの設定メモ（任意） */
+  lightingNote: string;
+};
+
+/** 空欄の曲入力を 1 件作る（「＋ 曲を追加」ボタン用）。 */
+export function emptySetlistSong(): SetlistSongInput {
+  return { title: '', paNote: '', lightingNote: '' };
+}
+
+/** 「まとめて貼り付け」で取り込んだ曲名から、メモが空の曲入力を作る。 */
+export function setlistSongsFromTitles(titles: readonly string[]): SetlistSongInput[] {
+  return normalizeSongTitles(titles).map((title) => ({ title, paNote: '', lightingNote: '' }));
+}
+
+/**
+ * 曲の配列を保存できる形に整える：前後の空白を除き、曲名が空の行は捨てる。
+ * 曲名の重複除去はしない（同じライブで同じ曲を 2 回演奏することがあるため）。
+ */
+export function normalizeSetlistSongs(songs: readonly SetlistSongInput[]): SetlistSongInput[] {
+  return songs
+    .map((song) => ({
+      title: song.title.trim(),
+      paNote: song.paNote.trim(),
+      lightingNote: song.lightingNote.trim(),
+    }))
+    .filter((song) => song.title !== '');
+}
+
+export type SongValidationError = { message: string };
+
+/** 曲ごとの PA・照明メモのチェック。DB の check 制約（300 文字まで）と同じ条件を画面側でも先に見る。 */
+export function validateSetlistSongs(
+  songs: readonly SetlistSongInput[],
+): SongValidationError | null {
+  for (const song of normalizeSetlistSongs(songs)) {
+    if (song.paNote.length > 300) {
+      return { message: `「${song.title}」のPAメモは300文字までです。` };
+    }
+    if (song.lightingNote.length > 300) {
+      return { message: `「${song.title}」の照明メモは300文字までです。` };
+    }
+  }
+  return null;
+}
+
 export type LiveInput = {
   title: string;
   performedOn: string;
   venue: string;
   /** 出演バンド名（任意） */
   band: string;
-  songs: string[];
+  songs: SetlistSongInput[];
 };
 
-export type ValidationError = { field: 'title' | 'performedOn' | 'band'; message: string };
+export type ValidationError = {
+  field: 'title' | 'performedOn' | 'band' | 'songs';
+  message: string;
+};
 
 /** 保存前の入力チェック。DB の check 制約と同じ条件を画面側でも先に見て、往復を減らす。 */
 export function validateLiveInput(input: LiveInput): ValidationError | null {
@@ -51,6 +108,10 @@ export function validateLiveInput(input: LiveInput): ValidationError | null {
   }
   if (input.band.trim().length > 100) {
     return { field: 'band', message: 'バンド名は100文字までです。' };
+  }
+  const songError = validateSetlistSongs(input.songs);
+  if (songError) {
+    return { field: 'songs', message: songError.message };
   }
   return null;
 }

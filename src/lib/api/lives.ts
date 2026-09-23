@@ -1,5 +1,12 @@
 import { supabase } from '../supabase';
-import { normalizeSongTitles } from '../setlist';
+import { normalizeSetlistSongs, type SetlistSongInput } from '../setlist';
+
+/** ライブでの 1 曲分。PA・照明メモは「このライブのこの曲」に紐づく。 */
+export type LiveSong = {
+  title: string;
+  paNote: string | null;
+  lightingNote: string | null;
+};
 
 export type Live = {
   id: string;
@@ -10,8 +17,8 @@ export type Live = {
   band: string | null;
   /** 登録した部員の user_id。名前への変換は部員名簿（circle_members）と突き合わせて行う */
   createdBy: string | null;
-  /** 曲順（position）どおりに並べ直した曲名 */
-  songs: string[];
+  /** 曲順（position）どおりに並べ直した曲（曲名・PA/照明メモ付き） */
+  songs: LiveSong[];
 };
 
 /**
@@ -21,11 +28,11 @@ export type Live = {
  * circle_id で絞っているのは表示の都合で、他サークルの行は RLS 側でも返らない。
  */
 export async function fetchLives(circleId: string): Promise<Live[]> {
+  // Supabase の型推論はこの select 文字列を直接見て返り値の型を組み立てるため、
+  // 文字列連結にすると推論できなくなる。1 つのリテラルのままにしておく
   const { data, error } = await supabase
     .from('lives')
-    .select(
-      'id, title, performed_on, venue, band, created_by, setlist_items(position, songs(title))',
-    )
+    .select('id, title, performed_on, venue, band, created_by, setlist_items(position, pa_note, lighting_note, songs(title))')
     .eq('circle_id', circleId)
     .order('performed_on', { ascending: false })
     .order('created_at', { ascending: false });
@@ -41,8 +48,12 @@ export async function fetchLives(circleId: string): Promise<Live[]> {
     createdBy: live.created_by,
     songs: [...live.setlist_items]
       .sort((a, b) => a.position - b.position)
-      .map((item) => item.songs?.title ?? '')
-      .filter((title) => title !== ''),
+      .filter((item) => (item.songs?.title ?? '') !== '')
+      .map((item) => ({
+        title: item.songs?.title ?? '',
+        paNote: item.pa_note,
+        lightingNote: item.lighting_note,
+      })),
   }));
 }
 
@@ -54,11 +65,11 @@ export type SaveLiveInput = {
   performedOn: string;
   venue: string;
   band: string;
-  songs: string[];
+  songs: SetlistSongInput[];
 };
 
 /**
- * ライブ本体・曲・曲順をまとめて保存する。
+ * ライブ本体・曲・曲順・PA/照明メモをまとめて保存する。
  * setlist_items を個別に insert すると途中で失敗したときに半端なデータが残るため、
  * DB 側の関数 save_live（1 トランザクション）だけを呼ぶ。
  * save_live は security invoker なので、他サークルの ID を渡しても RLS で弾かれる。
@@ -71,7 +82,12 @@ export async function saveLive(input: SaveLiveInput): Promise<string> {
     p_performed_on: input.performedOn,
     p_venue: input.venue.trim(),
     p_band: input.band.trim(),
-    p_songs: normalizeSongTitles(input.songs),
+    // RPC 側は [{ title, pa_note, lighting_note }, ...] の jsonb を受け取る
+    p_songs: normalizeSetlistSongs(input.songs).map((song) => ({
+      title: song.title,
+      pa_note: song.paNote,
+      lighting_note: song.lightingNote,
+    })),
   });
 
   if (error) throw error;

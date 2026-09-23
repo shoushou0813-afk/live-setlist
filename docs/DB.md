@@ -15,7 +15,7 @@ auth.users (Supabase 管理)
              │      id, circle_id, created_by, title, performed_on, venue, band, created_at
              │        │ 1
              │        └──< setlist_items   曲順（中間テーブル）
-             │               live_id, position, song_id, circle_id
+             │               live_id, position, song_id, circle_id, pa_note, lighting_note
              │               PK (live_id, position)
              │                     │ n
              └──< songs  ──────────┘ 1
@@ -50,6 +50,12 @@ auth.users (Supabase 管理)
 - **保存は RPC `save_live`**：ライブ・曲・曲順を複数回に分けて送ると、途中で失敗したとき半端な
   データが残る。関数にまとめて 1 トランザクションにした。`security invoker` なので、
   他サークルの ID を渡しても RLS がそのまま効いて弾かれる。
+- **`save_live` の曲引数は `text[]` ではなく `jsonb`**：曲名だけでなく PA・照明メモも
+  1 曲ずつ運ぶ必要があり、`text[]` だと 1 曲につき 1 つの値しか持てないため、
+  `[{"title": "...", "pa_note": "...", "lighting_note": "..."}, ...]` の形にした。
+- **PA・照明メモは `songs`（曲マスタ）ではなく `setlist_items`（曲順の行）に持たせた**：
+  同じ曲でもライブごとに会場や機材で設定が変わる（例：屋外イベントだけ低音を上げる）ため、
+  曲そのものではなく「このライブのこの曲」の単位でメモを残せるようにした。
 - **集計はビュー `song_stats`**：`security_invoker = true` で呼び出したユーザーの RLS が効く。
   付けないと作成者（管理者）権限で動き、他サークルの集計まで見えてしまう。
 - **ライブ削除で曲は消さない**：どのライブにも出ていない曲はビューの内部結合で自然に一覧から消える。
@@ -70,15 +76,18 @@ auth.users (Supabase 管理)
 - 空行・前後空白の除去、大小文字の名寄せ（3 行の入力が 2 曲になる）、曲順の作り直し
 - 演奏回数が `count(distinct live_id)` で数えられている
 - 一般部員でも自分の表示名は変更でき、管理者だけがサークル名を変更できる
+- 曲ごとの PA・照明メモが `setlist_items` に保存され、300 文字以内なら通る。
+  空白だけのメモは `null` になる。更新で曲を減らすと、それに合わせて曲順・メモも作り直される
 
 拒否されること
-- 別サークルの人から：ライブ・曲・集計・部員名簿がすべて 0 件、直接の update / delete も 0 件
+- 別サークルの人から：ライブ・曲・集計・部員名簿・PA/照明メモがすべて 0 件、直接の update / delete も 0 件
 - 別サークルの `circle_id` を指定した insert、他サークルの `live_id` / `song_id` の紐づけ
 - 他サークルの ID を渡した `save_live`（「このサークルの部員ではありません」）
 - 間違った招待コードでの参加（「招待コードが違います」）
 - `circles` への直接 insert（作成は RPC だけ）
 - 一般部員が自分を admin に昇格させること
 - 未ログイン（anon）：行は 0 件、`save_live` / `create_circle` / `join_circle` は実行権限なし
+- 300 文字を超える PA・照明メモ（DB の check 制約で拒否される）
 
 そのほか
 - `seed.sql` は 2 回実行しても同じ結果

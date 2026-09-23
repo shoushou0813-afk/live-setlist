@@ -143,18 +143,24 @@ export type Database = {
           position: number;
           song_id: string;
           circle_id: string;
+          pa_note: string | null;
+          lighting_note: string | null;
         };
         Insert: {
           live_id: string;
           position: number;
           song_id: string;
           circle_id: string;
+          pa_note?: string | null;
+          lighting_note?: string | null;
         };
         Update: {
           live_id?: string;
           position?: number;
           song_id?: string;
           circle_id?: string;
+          pa_note?: string | null;
+          lighting_note?: string | null;
         };
         Relationships: [
           {
@@ -212,7 +218,8 @@ export type Database = {
           p_performed_on: string;
           p_venue: string | null;
           p_band: string | null;
-          p_songs: string[];
+          // [{ title, pa_note?, lighting_note? }, ...]
+          p_songs: Json;
         };
         Returns: string;
       };
