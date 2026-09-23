@@ -2,14 +2,16 @@ import { supabase } from '../supabase';
 import type { SongStat } from '../setlist';
 
 /**
- * 曲ごとの演奏回数・最終演奏日を取得する。
+ * サークルの曲ごとの演奏回数・最終演奏日を取得する。
  * 集計はビュー song_stats（security_invoker = true）に任せ、
  * 全ライブを取ってきてブラウザで数える形にはしない。
+ * サークル全員の記録がまとまるので「サークルで一番やっている曲」が出せる。
  */
-export async function fetchSongStats(): Promise<SongStat[]> {
+export async function fetchSongStats(circleId: string): Promise<SongStat[]> {
   const { data, error } = await supabase
     .from('song_stats')
-    .select('id, title, play_count, last_played_on');
+    .select('id, title, play_count, last_played_on')
+    .eq('circle_id', circleId);
 
   if (error) throw error;
 

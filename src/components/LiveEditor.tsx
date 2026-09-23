@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { saveLive, type Live } from '../lib/api/lives';
-import { parseSongTitlesFromText, songTitlesToText, validateLiveInput } from '../lib/setlist';
+import { useCircle } from './CircleProvider';
+import {
+  emptySetlistSong,
+  parseSongTitlesFromText,
+  setlistSongsFromTitles,
+  songTitlesToText,
+  validateLiveInput,
+  type SetlistSongInput,
+} from '../lib/setlist';
 import styles from './LiveEditor.module.css';
 
 type Props = {
@@ -12,30 +20,46 @@ type Props = {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Live の曲（fetchLives で取得した形）を編集用の入力に変換する。 */
+const toSongInputs = (songs: Live['songs']): SetlistSongInput[] =>
+  songs.map((song) => ({
+    title: song.title,
+    paNote: song.paNote ?? '',
+    lightingNote: song.lightingNote ?? '',
+  }));
+
 export function LiveEditor({ live, onCancel, onSaved }: Props) {
+  const { current } = useCircle();
   const [title, setTitle] = useState(live?.title ?? '');
   const [performedOn, setPerformedOn] = useState(live?.performedOn ?? today());
   const [venue, setVenue] = useState(live?.venue ?? '');
+  const [band, setBand] = useState(live?.band ?? '');
   // 1 曲ずつモード用。空欄が 1 つあると最初から打ち始められる
-  const [songs, setSongs] = useState<string[]>(live?.songs.length ? [...live.songs] : ['']);
+  const [songs, setSongs] = useState<SetlistSongInput[]>(
+    live?.songs.length ? toSongInputs(live.songs) : [emptySetlistSong()],
+  );
   const [bulk, setBulk] = useState(false);
-  const [text, setText] = useState(() => songTitlesToText(live?.songs ?? []));
+  const [text, setText] = useState(() =>
+    songTitlesToText((live?.songs ?? []).map((song) => song.title)),
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // 入力モードを切り替えるときは、今表示している側の内容をもう一方に写してから切り替える
+  // 入力モードを切り替えるときは、今表示している側の内容をもう一方に写してから切り替える。
+  // まとめて貼り付けは曲名しか持てないので、1曲ずつ→まとめて→1曲ずつと往復すると
+  // PA・照明メモは失われる（メモを入れるなら 1曲ずつモードのまま編集する運用にしている）
   const switchToSingle = () => {
-    const parsed = parseSongTitlesFromText(text);
-    setSongs(parsed.length ? parsed : ['']);
+    const parsed = setlistSongsFromTitles(parseSongTitlesFromText(text));
+    setSongs(parsed.length ? parsed : [emptySetlistSong()]);
     setBulk(false);
   };
   const switchToBulk = () => {
-    setText(songTitlesToText(songs));
+    setText(songTitlesToText(songs.map((song) => song.title)));
     setBulk(true);
   };
 
-  const updateSong = (index: number, value: string) =>
-    setSongs(songs.map((song, i) => (i === index ? value : song)));
+  const updateSong = (index: number, field: keyof SetlistSongInput, value: string) =>
+    setSongs(songs.map((song, i) => (i === index ? { ...song, [field]: value } : song)));
 
   const moveSong = (index: number, direction: -1 | 1) => {
     const target = index + direction;
@@ -55,17 +79,29 @@ export function LiveEditor({ live, onCancel, onSaved }: Props) {
   }, [onCancel]);
 
   const handleSave = async () => {
-    const songTitles = bulk ? parseSongTitlesFromText(text) : songs;
-    const invalid = validateLiveInput({ title, performedOn, venue, songs: songTitles });
+    const finalSongs = bulk ? setlistSongsFromTitles(parseSongTitlesFromText(text)) : songs;
+    const invalid = validateLiveInput({ title, performedOn, venue, band, songs: finalSongs });
     if (invalid) {
       setError(invalid.message);
+      return;
+    }
+    if (!current) {
+      setError('サークルが選ばれていません。ページを再読み込みしてください。');
       return;
     }
 
     setError(null);
     setSaving(true);
     try {
-      await saveLive({ id: live?.id ?? null, title, performedOn, venue, songs: songTitles });
+      await saveLive({
+        id: live?.id ?? null,
+        circleId: current.circleId,
+        title,
+        performedOn,
+        venue,
+        band,
+        songs: finalSongs,
+      });
       onSaved();
     } catch (e) {
       console.error(e);
@@ -90,6 +126,16 @@ export function LiveEditor({ live, onCancel, onSaved }: Props) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="例：定期ライブ vol.3"
+            maxLength={100}
+          />
+        </label>
+
+        <label className={styles.field}>
+          出演バンド（任意）
+          <input
+            value={band}
+            onChange={(e) => setBand(e.target.value)}
+            placeholder="例：ゆうやけシグナル"
             maxLength={100}
           />
         </label>
@@ -137,27 +183,49 @@ export function LiveEditor({ live, onCancel, onSaved }: Props) {
               // 並べ替え・削除で中身がずれるが、入力欄の同一性は「その位置」で判断してよい
               // eslint-disable-next-line react/no-array-index-key
               <li key={index}>
-                <input
-                  value={song}
-                  onChange={(e) => updateSong(index, e.target.value)}
-                  placeholder={`${index + 1}曲目`}
-                  aria-label={`${index + 1}曲目`}
-                />
-                <button onClick={() => moveSong(index, -1)} aria-label={`${index + 1}曲目を上へ`}>
-                  ↑
-                </button>
-                <button onClick={() => moveSong(index, 1)} aria-label={`${index + 1}曲目を下へ`}>
-                  ↓
-                </button>
-                <button
-                  onClick={() => setSongs(songs.filter((_, i) => i !== index))}
-                  aria-label={`${index + 1}曲目を削除`}
-                >
-                  ✕
-                </button>
+                <div className={styles.songMain}>
+                  <input
+                    value={song.title}
+                    onChange={(e) => updateSong(index, 'title', e.target.value)}
+                    placeholder={`${index + 1}曲目`}
+                    aria-label={`${index + 1}曲目`}
+                  />
+                  <button
+                    onClick={() => moveSong(index, -1)}
+                    aria-label={`${index + 1}曲目を上へ`}
+                  >
+                    ↑
+                  </button>
+                  <button onClick={() => moveSong(index, 1)} aria-label={`${index + 1}曲目を下へ`}>
+                    ↓
+                  </button>
+                  <button
+                    onClick={() => setSongs(songs.filter((_, i) => i !== index))}
+                    aria-label={`${index + 1}曲目を削除`}
+                  >
+                    ✕
+                  </button>
+                </div>
+                {/* PA・照明班向けのメモ。任意入力で、同じ曲でもライブごとに残る */}
+                <div className={styles.notes}>
+                  <input
+                    value={song.paNote}
+                    onChange={(e) => updateSong(index, 'paNote', e.target.value)}
+                    placeholder="PAメモ（任意）"
+                    aria-label={`${index + 1}曲目のPAメモ`}
+                    maxLength={300}
+                  />
+                  <input
+                    value={song.lightingNote}
+                    onChange={(e) => updateSong(index, 'lightingNote', e.target.value)}
+                    placeholder="照明メモ（任意）"
+                    aria-label={`${index + 1}曲目の照明メモ`}
+                    maxLength={300}
+                  />
+                </div>
               </li>
             ))}
-            <button className={styles.more} onClick={() => setSongs([...songs, ''])}>
+            <button className={styles.more} onClick={() => setSongs([...songs, emptySetlistSong()])}>
               ＋ 曲を追加
             </button>
           </ol>

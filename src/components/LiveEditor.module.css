@@ -118,16 +118,18 @@
 }
 
 .edit li {
-  margin-bottom: 6px;
+  margin-bottom: 10px;
 }
 
-.edit li > * {
-  vertical-align: middle;
+.songMain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.edit input {
-  display: inline-block;
-  width: calc(100% - 96px);
+.songMain input {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   border: 1.5px solid #c9cfdb;
   border-radius: 6px;
@@ -137,15 +139,41 @@
   color: var(--ink);
 }
 
-.edit li button {
+.songMain button {
+  flex: none;
   width: 28px;
   height: 32px;
-  margin-left: 4px;
   border: 0;
   background: #e2e6ee;
   border-radius: 5px;
   cursor: pointer;
   color: var(--ink);
+}
+
+/* PA・照明メモ。曲名より一段小さく見せて、必須ではない補助情報だと分かるようにする */
+.notes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.notes input {
+  width: 100%;
+  margin: 0;
+  border: 1.5px solid #dfe3ec;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  background: #f8f9fb;
+  color: var(--ink);
+}
+
+@media (max-width: 380px) {
+  .notes {
+    grid-template-columns: 1fr;
+  }
 }
 
 .more {

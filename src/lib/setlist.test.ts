@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
+  emptySetlistSong,
   filterSongs,
   formatDate,
   maxPlayCount,
+  normalizeSetlistSongs,
   normalizeSongTitles,
   parseSongTitlesFromText,
+  setlistSongsFromTitles,
   songTitleKey,
   songTitlesToText,
   sortSongs,
   validateLiveInput,
+  validateSetlistSongs,
+  type SetlistSongInput,
   type SongStat,
 } from './setlist';
 
@@ -58,8 +63,71 @@ describe('songTitleKey', () => {
   });
 });
 
+describe('emptySetlistSong', () => {
+  it('曲名・PAメモ・照明メモがすべて空の曲を作る', () => {
+    expect(emptySetlistSong()).toEqual({ title: '', paNote: '', lightingNote: '' });
+  });
+});
+
+describe('setlistSongsFromTitles', () => {
+  it('曲名からメモが空の曲入力を作る（空行・前後空白は除く）', () => {
+    expect(setlistSongsFromTitles(['  Blue Line ', '', '夜明けのバス'])).toEqual([
+      { title: 'Blue Line', paNote: '', lightingNote: '' },
+      { title: '夜明けのバス', paNote: '', lightingNote: '' },
+    ]);
+  });
+});
+
+describe('normalizeSetlistSongs', () => {
+  it('前後の空白を除き、曲名が空の行は捨てる（メモが入っていても捨てる）', () => {
+    const songs: SetlistSongInput[] = [
+      { title: '  Blue Line ', paNote: ' EQ低音+2 ', lightingNote: '' },
+      { title: '   ', paNote: '曲名が無いので消えるはず', lightingNote: '' },
+    ];
+    expect(normalizeSetlistSongs(songs)).toEqual([
+      { title: 'Blue Line', paNote: 'EQ低音+2', lightingNote: '' },
+    ]);
+  });
+
+  it('同じ曲を 2 回演奏した場合は重複を残す', () => {
+    const songs: SetlistSongInput[] = [
+      { title: 'Blue Line', paNote: '1回目', lightingNote: '' },
+      { title: 'Blue Line', paNote: '2回目', lightingNote: '' },
+    ];
+    expect(normalizeSetlistSongs(songs)).toHaveLength(2);
+  });
+});
+
+describe('validateSetlistSongs', () => {
+  it('メモが 300 文字以内なら null', () => {
+    const songs: SetlistSongInput[] = [
+      { title: '曲A', paNote: 'あ'.repeat(300), lightingNote: 'い'.repeat(300) },
+    ];
+    expect(validateSetlistSongs(songs)).toBeNull();
+  });
+
+  it('PAメモが 300 文字を超えるとエラー（DB の check 制約と同じ）', () => {
+    const songs: SetlistSongInput[] = [
+      { title: '曲A', paNote: 'あ'.repeat(301), lightingNote: '' },
+    ];
+    expect(validateSetlistSongs(songs)?.message).toContain('曲A');
+  });
+
+  it('照明メモが 300 文字を超えるとエラー', () => {
+    const songs: SetlistSongInput[] = [
+      { title: '曲A', paNote: '', lightingNote: 'い'.repeat(301) },
+    ];
+    expect(validateSetlistSongs(songs)?.message).toContain('照明メモ');
+  });
+
+  it('曲名が空の行はチェックしない（保存時に捨てられるため）', () => {
+    const songs: SetlistSongInput[] = [{ title: '', paNote: 'あ'.repeat(301), lightingNote: '' }];
+    expect(validateSetlistSongs(songs)).toBeNull();
+  });
+});
+
 describe('validateLiveInput', () => {
-  const base = { title: '定期ライブ', performedOn: '2026-02-14', venue: '', songs: [] };
+  const base = { title: '定期ライブ', performedOn: '2026-02-14', venue: '', band: '', songs: [] };
 
   it('必須が埋まっていれば null', () => {
     expect(validateLiveInput(base)).toBeNull();
@@ -79,6 +147,18 @@ describe('validateLiveInput', () => {
 
   it('日付が空ならエラー', () => {
     expect(validateLiveInput({ ...base, performedOn: '' })?.field).toBe('performedOn');
+  });
+
+  it('バンド名が 100 文字を超えるとエラー（DB の check 制約と同じ）', () => {
+    expect(validateLiveInput({ ...base, band: 'あ'.repeat(101) })?.field).toBe('band');
+    expect(validateLiveInput({ ...base, band: 'あ'.repeat(100) })).toBeNull();
+  });
+
+  it('曲の PA メモが 300 文字を超えるとエラー（songs フィールドとして返る）', () => {
+    const songs: SetlistSongInput[] = [
+      { title: '曲A', paNote: 'あ'.repeat(301), lightingNote: '' },
+    ];
+    expect(validateLiveInput({ ...base, songs })?.field).toBe('songs');
   });
 });
 
