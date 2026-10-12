@@ -65,6 +65,13 @@ create table public.setlist_items (
   -- 曲マスタ（songs）ではなく「このライブのこの曲」の単位（setlist_items）で持つ
   pa_note        text check (char_length(pa_note) <= 300),
   lighting_note  text check (char_length(lighting_note) <= 300),
+  -- 照明の色と明るさ。照明班が「前回どの色・何％で当てたか」をすぐ引けるよう、
+  -- 自由記述の照明メモとは別の欄にしている
+  lighting_color       text check (char_length(lighting_color) <= 50),
+  lighting_brightness  smallint check (lighting_brightness between 0 and 100),
+  -- きっかけ・操作の流れ（例：イントロで暗転→サビ頭で全灯）。経験のない部員が
+  -- 担当を引き継げるよう、設定値だけでなく手順も残す
+  procedure_note       text check (char_length(procedure_note) <= 500),
   primary key (live_id, position)
 );
 
@@ -306,9 +313,10 @@ $$;
 -- p_live_id が null なら新規作成、あれば更新（曲順は作り直し）
 -- security invoker なので、他サークルの ID を渡しても RLS で弾かれる
 --
--- p_songs は jsonb の配列。曲名だけでなく PA・照明の設定メモも一緒に運ぶ必要があり、
--- text[] では 1 曲につき 1 つの値しか持てないため jsonb に変更した：
---   [{"title": "曲名", "pa_note": "EQ低音+2…", "lighting_note": "赤主体…"}, ...]
+-- p_songs は jsonb の配列。曲名だけでなく PA・照明の設定や手順も一緒に運ぶ必要があり、
+-- text[] では 1 曲につき 1 つの値しか持てないため jsonb にしている：
+--   [{"title": "曲名", "pa_note": "EQ低音+2…", "lighting_note": "…",
+--     "lighting_color": "赤", "lighting_brightness": 80, "procedure_note": "…"}, ...]
 
 create or replace function public.save_live(
   p_live_id      uuid,
@@ -329,6 +337,9 @@ declare
   v_title   text;
   v_pa      text;
   v_light   text;
+  v_color   text;
+  v_bright  smallint;
+  v_proc    text;
   v_song_id uuid;
   v_pos     int := 0;
 begin
@@ -371,8 +382,11 @@ begin
   for v_song in select jsonb_array_elements(coalesce(p_songs, '[]'::jsonb)) loop
     v_title := btrim(coalesce(v_song->>'title', ''));
     continue when v_title = '';
-    v_pa    := nullif(btrim(coalesce(v_song->>'pa_note', '')), '');
-    v_light := nullif(btrim(coalesce(v_song->>'lighting_note', '')), '');
+    v_pa     := nullif(btrim(coalesce(v_song->>'pa_note', '')), '');
+    v_light  := nullif(btrim(coalesce(v_song->>'lighting_note', '')), '');
+    v_color  := nullif(btrim(coalesce(v_song->>'lighting_color', '')), '');
+    v_bright := nullif(btrim(coalesce(v_song->>'lighting_brightness', '')), '')::smallint;
+    v_proc   := nullif(btrim(coalesce(v_song->>'procedure_note', '')), '');
 
     insert into public.songs (circle_id, title) values (p_circle_id, v_title)
     on conflict (circle_id, title_key) do nothing;
@@ -382,8 +396,14 @@ begin
      where circle_id = p_circle_id and title_key = lower(v_title);
 
     v_pos := v_pos + 1;
-    insert into public.setlist_items (live_id, position, song_id, circle_id, pa_note, lighting_note)
-    values (v_live_id, v_pos, v_song_id, p_circle_id, v_pa, v_light);
+    insert into public.setlist_items (
+      live_id, position, song_id, circle_id,
+      pa_note, lighting_note, lighting_color, lighting_brightness, procedure_note
+    )
+    values (
+      v_live_id, v_pos, v_song_id, p_circle_id,
+      v_pa, v_light, v_color, v_bright, v_proc
+    );
   end loop;
 
   return v_live_id;

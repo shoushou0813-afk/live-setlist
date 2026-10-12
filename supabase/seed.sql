@@ -18,6 +18,9 @@ declare
   v_title  text;
   v_pa     text;
   v_light  text;
+  v_color  text;
+  v_bright smallint;
+  v_proc   text;
   s        jsonb;
   r        record;
 begin
@@ -48,14 +51,17 @@ begin
       ('新歓ライブ', date '2025-04-18', '学生会館ホール', 'ゆうやけシグナル',
         '[
           {"title": "Opening Jam"},
-          {"title": "夜明けのバス", "pa_note": "ボーカルは会場が狭いので控えめに", "lighting_note": "暖色系、間奏で暗転"},
-          {"title": "Blue Line",    "pa_note": "EQ低音+2、コーラスに薄くディレイ", "lighting_note": "赤主体、サビで白フラッシュ"},
+          {"title": "夜明けのバス", "pa_note": "ボーカルは会場が狭いので控えめに", "lighting_note": "間奏で暗転",
+           "lighting_color": "オレンジ", "lighting_brightness": 60},
+          {"title": "Blue Line",    "pa_note": "EQ低音+2、コーラスに薄くディレイ", "lighting_note": "サビで白フラッシュ",
+           "lighting_color": "赤", "lighting_brightness": 80,
+           "procedure_note": "イントロ4小節は暗転→歌い出しで赤を全灯→サビ頭で白フラッシュ。PAはサビ前にコーラスのディレイをON"},
           {"title": "アンコール前"}
         ]'::jsonb),
       ('学園祭ステージ', date '2025-11-02', '中庭特設ステージ', 'ゆうやけシグナル',
         '[
           {"title": "夜明けのバス", "pa_note": "屋外なので低音を+3、モニター多めに返す"},
-          {"title": "Coffee & Rain", "lighting_note": "青系でゆっくりフェード"},
+          {"title": "Coffee & Rain", "lighting_note": "ゆっくりフェード", "lighting_color": "青", "lighting_brightness": 40},
           {"title": "Blue Line",    "pa_note": "屋外仕様。低音+2は変えず、全体を+3dB"},
           {"title": "小さな灯"},
           {"title": "Opening Jam"}
@@ -64,7 +70,9 @@ begin
         '[
           {"title": "Coffee & Rain"},
           {"title": "夜明けのバス"},
-          {"title": "ねじれ坂",     "pa_note": "ギターソロでディレイを深めに切り替え", "lighting_note": "ソロ中はスポット単色"},
+          {"title": "ねじれ坂",     "pa_note": "ギターソロでディレイを深めに切り替え", "lighting_note": "ソロ中はスポット単色",
+           "lighting_color": "紫", "lighting_brightness": 70,
+           "procedure_note": "ソロ直前のブレイクで全体を落とす→ソロ頭でギターにスポット。PAはソロの間だけギターを+3dB"},
           {"title": "Blue Line"}
         ]'::jsonb),
       ('定期ライブ vol.2', date '2026-06-20', '下北沢〇〇', 'ねむれない放課後',
@@ -72,7 +80,7 @@ begin
           {"title": "ねじれ坂",     "pa_note": "前回と同じ設定。ソロ前にディレイ深め"},
           {"title": "小さな灯"},
           {"title": "夜明けのバス"},
-          {"title": "Summer Static", "lighting_note": "夏らしく白と水色を交互に"},
+          {"title": "Summer Static", "lighting_note": "サビで交互に切り替え", "lighting_color": "白・水色", "lighting_brightness": 90},
           {"title": "Blue Line"}
         ]'::jsonb)
     ) as t(title, performed_on, venue, band, songs)
@@ -91,6 +99,9 @@ begin
       v_title := btrim(s->>'title');
       v_pa    := nullif(btrim(coalesce(s->>'pa_note', '')), '');
       v_light := nullif(btrim(coalesce(s->>'lighting_note', '')), '');
+      v_color := nullif(btrim(coalesce(s->>'lighting_color', '')), '');
+      v_bright := nullif(btrim(coalesce(s->>'lighting_brightness', '')), '')::smallint;
+      v_proc  := nullif(btrim(coalesce(s->>'procedure_note', '')), '');
 
       insert into public.songs (circle_id, title) values (v_circle, v_title)
       on conflict (circle_id, title_key) do nothing;
@@ -100,8 +111,11 @@ begin
        where circle_id = v_circle and title_key = lower(v_title);
 
       v_pos := v_pos + 1;
-      insert into public.setlist_items (live_id, position, song_id, circle_id, pa_note, lighting_note)
-      values (v_live, v_pos, v_song, v_circle, v_pa, v_light);
+      insert into public.setlist_items (
+        live_id, position, song_id, circle_id,
+        pa_note, lighting_note, lighting_color, lighting_brightness, procedure_note
+      )
+      values (v_live, v_pos, v_song, v_circle, v_pa, v_light, v_color, v_bright, v_proc);
     end loop;
   end loop;
 

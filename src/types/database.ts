@@ -145,6 +145,9 @@ export type Database = {
           circle_id: string;
           pa_note: string | null;
           lighting_note: string | null;
+          lighting_color: string | null;
+          lighting_brightness: number | null;
+          procedure_note: string | null;
         };
         Insert: {
           live_id: string;
@@ -153,6 +156,9 @@ export type Database = {
           circle_id: string;
           pa_note?: string | null;
           lighting_note?: string | null;
+          lighting_color?: string | null;
+          lighting_brightness?: number | null;
+          procedure_note?: string | null;
         };
         Update: {
           live_id?: string;
@@ -161,6 +167,9 @@ export type Database = {
           circle_id?: string;
           pa_note?: string | null;
           lighting_note?: string | null;
+          lighting_color?: string | null;
+          lighting_brightness?: number | null;
+          procedure_note?: string | null;
         };
         Relationships: [
           {
@@ -218,7 +227,7 @@ export type Database = {
           p_performed_on: string;
           p_venue: string | null;
           p_band: string | null;
-          // [{ title, pa_note?, lighting_note? }, ...]
+          // [{ title, pa_note?, lighting_note?, lighting_color?, lighting_brightness?, procedure_note? }, ...]
           p_songs: Json;
         };
         Returns: string;
