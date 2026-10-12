@@ -15,7 +15,8 @@ auth.users (Supabase 管理)
              │      id, circle_id, created_by, title, performed_on, venue, band, created_at
              │        │ 1
              │        └──< setlist_items   曲順（中間テーブル）
-             │               live_id, position, song_id, circle_id, pa_note, lighting_note
+             │               live_id, position, song_id, circle_id, pa_note, lighting_note,
+             │               lighting_color, lighting_brightness, procedure_note
              │               PK (live_id, position)
              │                     │ n
              └──< songs  ──────────┘ 1
@@ -53,7 +54,11 @@ auth.users (Supabase 管理)
 - **`save_live` の曲引数は `text[]` ではなく `jsonb`**：曲名だけでなく PA・照明メモも
   1 曲ずつ運ぶ必要があり、`text[]` だと 1 曲につき 1 つの値しか持てないため、
   `[{"title": "...", "pa_note": "...", "lighting_note": "..."}, ...]` の形にした。
-- **PA・照明メモは `songs`（曲マスタ）ではなく `setlist_items`（曲順の行）に持たせた**：
+- **照明の色・明るさを自由記述のメモと別の列にした**：照明班が「前回どの色・何％で当てたか」を
+  すぐ引けるように。明るさは `smallint` で 0〜100 に制限している。
+- **手順（`procedure_note`）を設定値と別に持つ**：設定値だけでは、経験のない部員が
+  「どのタイミングで何を操作するか」まで引き継げないため。
+- **PA・照明の設定は `songs`（曲マスタ）ではなく `setlist_items`（曲順の行）に持たせた**：
   同じ曲でもライブごとに会場や機材で設定が変わる（例：屋外イベントだけ低音を上げる）ため、
   曲そのものではなく「このライブのこの曲」の単位でメモを残せるようにした。
 - **集計はビュー `song_stats`**：`security_invoker = true` で呼び出したユーザーの RLS が効く。
@@ -76,7 +81,7 @@ auth.users (Supabase 管理)
 - 空行・前後空白の除去、大小文字の名寄せ（3 行の入力が 2 曲になる）、曲順の作り直し
 - 演奏回数が `count(distinct live_id)` で数えられている
 - 一般部員でも自分の表示名は変更でき、管理者だけがサークル名を変更できる
-- 曲ごとの PA・照明メモが `setlist_items` に保存され、300 文字以内なら通る。
+- 曲ごとの PA・照明（色・明るさ・メモ）・手順が `setlist_items` に保存され、上限以内なら通る。
   空白だけのメモは `null` になる。更新で曲を減らすと、それに合わせて曲順・メモも作り直される
 
 拒否されること
@@ -87,7 +92,10 @@ auth.users (Supabase 管理)
 - `circles` への直接 insert（作成は RPC だけ）
 - 一般部員が自分を admin に昇格させること
 - 未ログイン（anon）：行は 0 件、`save_live` / `create_circle` / `join_circle` は実行権限なし
-- 300 文字を超える PA・照明メモ（DB の check 制約で拒否される）
+- 上限を超える PA・照明メモ（300）、照明の色（50）、手順（500）、0〜100 以外の明るさ
+  （DB の check 制約で拒否され、ライブ本体も保存されずに巻き戻る）
+- 既存 DB への追加マイグレーション（`supabase/migrations/20261012_lighting_and_procedure.sql`）を
+  2 回流しても壊れず、既存のライブ・メモが消えないこと
 
 そのほか
 - `seed.sql` は 2 回実行しても同じ結果

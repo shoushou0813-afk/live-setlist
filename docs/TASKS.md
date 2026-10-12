@@ -4,6 +4,8 @@
 チェックが付いているものは実装済み（コードはリポジトリに入っている）。
 
 ## 0. 準備（人がやる・未完了）
+- [ ] すでに schema.sql を実行済みなら、SQL Editor で
+      `supabase/migrations/20261012_lighting_and_procedure.sql` を実行（照明の色・明るさ・手順の列を追加）
 - [ ] Supabase で新規プロジェクト作成
 - [ ] SQL Editor で `supabase/schema.sql` を実行
 - [ ] Authentication > Sign In / Providers で「Allow new users to sign up」を**オン**
@@ -42,16 +44,18 @@
 ## 4. データ取得・保存の関数
 - [x] `lib/api/lives.ts`：`fetchLives(circleId)`（`setlist_items(position, songs(title))` を含めて
       取得し、曲順に並べて返す）、`saveLive()`（`rpc('save_live')`）、`deleteLive()`
-- [x] `lib/api/songs.ts`：`fetchSongStats(circleId)`（`song_stats`）、`fetchLivesForSong(songId)`
+- [x] `lib/api/songs.ts`：`fetchSongStats(circleId)`（`song_stats`）、`fetchSongHistory(songId)`
+      （その曲を演奏したライブと、そのときの PA・照明・手順を新しい順に返す）
 - [x] 入力の整形（空行除去・trim）を純粋関数にして Vitest でテスト
 
 ## 5. ライブ画面
 - [x] 試作版のカード表示と編集モーダルを移植し、保存・削除を API に接続
 - [x] 出演バンド名の入力と表示、登録者名の表示
-- [x] 曲ごとの PA メモ・照明メモ（1曲ずつモードで入力、各任意・300文字まで）
+- [x] 曲ごとの PA・照明（色・明るさ・メモ）・手順（1曲ずつモードで入力、すべて任意）
 - [x] 保存後は一覧を再取得。保存中・失敗の表示
 
 ## 6. 曲一覧画面
+- [x] 曲をタップすると過去の演奏ごとの PA・照明・手順を表示（一番新しいものに「前回」）
 - [x] 集計表示・並び替え・検索・タップで出演ライブ展開を移植
 - [x] ヘッダーのサークル名・招待コード・ライブ本数・曲数・部員数
 
