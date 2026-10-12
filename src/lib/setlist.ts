@@ -28,25 +28,39 @@ export function songTitleKey(title: string): string {
 
 /**
  * 「1曲ずつ」モードで扱う 1 曲分の入力。
- * PA・照明の設定メモは、同じ曲でも会場や機材でやり方が変わるため曲マスタではなく
+ * PA・照明の設定や手順は、同じ曲でも会場や機材でやり方が変わるため曲マスタではなく
  * 「このライブのこの曲」単位（＝この入力）で持つ。
+ * 入力欄の値をそのまま持つので、明るさも文字列（空欄なら未入力）にしている。
  */
 export type SetlistSongInput = {
   title: string;
   /** PA 班向けの音響設定メモ（任意） */
   paNote: string;
-  /** 照明班向けの設定メモ（任意） */
+  /** 照明の色（任意。例：赤、白・水色） */
+  lightingColor: string;
+  /** 照明の明るさ（任意。0〜100 の％を文字列で持つ） */
+  lightingBrightness: string;
+  /** 照明班向けのその他メモ（任意） */
   lightingNote: string;
+  /** きっかけ・操作の流れ（任意。PA・照明共通） */
+  procedureNote: string;
 };
 
 /** 空欄の曲入力を 1 件作る（「＋ 曲を追加」ボタン用）。 */
 export function emptySetlistSong(): SetlistSongInput {
-  return { title: '', paNote: '', lightingNote: '' };
+  return {
+    title: '',
+    paNote: '',
+    lightingColor: '',
+    lightingBrightness: '',
+    lightingNote: '',
+    procedureNote: '',
+  };
 }
 
-/** 「まとめて貼り付け」で取り込んだ曲名から、メモが空の曲入力を作る。 */
+/** 「まとめて貼り付け」で取り込んだ曲名から、設定欄が空の曲入力を作る。 */
 export function setlistSongsFromTitles(titles: readonly string[]): SetlistSongInput[] {
-  return normalizeSongTitles(titles).map((title) => ({ title, paNote: '', lightingNote: '' }));
+  return normalizeSongTitles(titles).map((title) => ({ ...emptySetlistSong(), title }));
 }
 
 /**
@@ -58,14 +72,46 @@ export function normalizeSetlistSongs(songs: readonly SetlistSongInput[]): Setli
     .map((song) => ({
       title: song.title.trim(),
       paNote: song.paNote.trim(),
+      lightingColor: song.lightingColor.trim(),
+      lightingBrightness: song.lightingBrightness.trim(),
       lightingNote: song.lightingNote.trim(),
+      procedureNote: song.procedureNote.trim(),
     }))
     .filter((song) => song.title !== '');
 }
 
+/**
+ * 明るさの入力を数値にする。空欄なら null、0〜100 の整数でなければ undefined（不正）を返す。
+ * 「未入力」と「入力が間違っている」を区別するため、null と undefined を使い分けている。
+ */
+export function parseBrightness(text: string): number | null | undefined {
+  const value = text.trim();
+  if (value === '') return null;
+  if (!/^\d{1,3}$/.test(value)) return undefined;
+  const n = Number(value);
+  return n <= 100 ? n : undefined;
+}
+
+/** PA・照明・手順のどれか 1 つでも入っているか（表示や「入力あり」の目印に使う）。 */
+export function hasStageNotes(song: {
+  paNote: string | null;
+  lightingColor: string | null;
+  lightingBrightness: string | number | null;
+  lightingNote: string | null;
+  procedureNote: string | null;
+}): boolean {
+  return [
+    song.paNote,
+    song.lightingColor,
+    song.lightingBrightness,
+    song.lightingNote,
+    song.procedureNote,
+  ].some((value) => value !== null && String(value).trim() !== '');
+}
+
 export type SongValidationError = { message: string };
 
-/** 曲ごとの PA・照明メモのチェック。DB の check 制約（300 文字まで）と同じ条件を画面側でも先に見る。 */
+/** 曲ごとの設定欄のチェック。DB の check 制約と同じ条件を画面側でも先に見る。 */
 export function validateSetlistSongs(
   songs: readonly SetlistSongInput[],
 ): SongValidationError | null {
@@ -73,8 +119,19 @@ export function validateSetlistSongs(
     if (song.paNote.length > 300) {
       return { message: `「${song.title}」のPAメモは300文字までです。` };
     }
+    if (song.lightingColor.length > 50) {
+      return { message: `「${song.title}」の照明の色は50文字までです。` };
+    }
+    if (parseBrightness(song.lightingBrightness) === undefined) {
+      return {
+        message: `「${song.title}」の照明の明るさは0〜100の数字で入力してください（空欄でもかまいません）。`,
+      };
+    }
     if (song.lightingNote.length > 300) {
       return { message: `「${song.title}」の照明メモは300文字までです。` };
+    }
+    if (song.procedureNote.length > 500) {
+      return { message: `「${song.title}」の手順は500文字までです。` };
     }
   }
   return null;

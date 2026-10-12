@@ -1,0 +1,26 @@
+.notes {
+  margin: 2px 0 6px;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #5b6479;
+}
+
+.notes div {
+  display: flex;
+  gap: 6px;
+}
+
+.notes dt {
+  flex: none;
+  min-width: 2.6em;
+  font-weight: 700;
+  color: var(--stage);
+}
+
+.notes dd {
+  margin: 0;
+  /* 手順は「→」で長くつながることが多いので、途中で折り返せるようにする */
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

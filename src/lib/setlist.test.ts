@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   emptySetlistSong,
+  hasStageNotes,
   filterSongs,
   formatDate,
   maxPlayCount,
   normalizeSetlistSongs,
   normalizeSongTitles,
+  parseBrightness,
   parseSongTitlesFromText,
   setlistSongsFromTitles,
   songTitleKey,
@@ -16,6 +18,12 @@ import {
   type SetlistSongInput,
   type SongStat,
 } from './setlist';
+
+/** テスト用：指定した欄だけ埋めた曲入力を作る（残りは空欄） */
+const song = (fields: Partial<SetlistSongInput>): SetlistSongInput => ({
+  ...emptySetlistSong(),
+  ...fields,
+});
 
 describe('normalizeSongTitles', () => {
   it('前後の空白を除き、空文字を捨てる', () => {
@@ -64,65 +72,135 @@ describe('songTitleKey', () => {
 });
 
 describe('emptySetlistSong', () => {
-  it('曲名・PAメモ・照明メモがすべて空の曲を作る', () => {
-    expect(emptySetlistSong()).toEqual({ title: '', paNote: '', lightingNote: '' });
+  it('曲名・PA・照明・手順の欄がすべて空の曲を作る', () => {
+    expect(emptySetlistSong()).toEqual({
+      title: '',
+      paNote: '',
+      lightingColor: '',
+      lightingBrightness: '',
+      lightingNote: '',
+      procedureNote: '',
+    });
   });
 });
 
 describe('setlistSongsFromTitles', () => {
-  it('曲名からメモが空の曲入力を作る（空行・前後空白は除く）', () => {
+  it('曲名から設定欄が空の曲入力を作る（空行・前後空白は除く）', () => {
     expect(setlistSongsFromTitles(['  Blue Line ', '', '夜明けのバス'])).toEqual([
-      { title: 'Blue Line', paNote: '', lightingNote: '' },
-      { title: '夜明けのバス', paNote: '', lightingNote: '' },
+      song({ title: 'Blue Line' }),
+      song({ title: '夜明けのバス' }),
     ]);
   });
 });
 
 describe('normalizeSetlistSongs', () => {
-  it('前後の空白を除き、曲名が空の行は捨てる（メモが入っていても捨てる）', () => {
-    const songs: SetlistSongInput[] = [
-      { title: '  Blue Line ', paNote: ' EQ低音+2 ', lightingNote: '' },
-      { title: '   ', paNote: '曲名が無いので消えるはず', lightingNote: '' },
+  it('前後の空白を除き、曲名が空の行は捨てる（設定が入っていても捨てる）', () => {
+    const songs = [
+      song({ title: '  Blue Line ', paNote: ' EQ低音+2 ', lightingBrightness: ' 80 ' }),
+      song({ title: '   ', paNote: '曲名が無いので消えるはず' }),
     ];
     expect(normalizeSetlistSongs(songs)).toEqual([
-      { title: 'Blue Line', paNote: 'EQ低音+2', lightingNote: '' },
+      song({ title: 'Blue Line', paNote: 'EQ低音+2', lightingBrightness: '80' }),
     ]);
   });
 
   it('同じ曲を 2 回演奏した場合は重複を残す', () => {
-    const songs: SetlistSongInput[] = [
-      { title: 'Blue Line', paNote: '1回目', lightingNote: '' },
-      { title: 'Blue Line', paNote: '2回目', lightingNote: '' },
+    const songs = [
+      song({ title: 'Blue Line', paNote: '1回目' }),
+      song({ title: 'Blue Line', paNote: '2回目' }),
     ];
     expect(normalizeSetlistSongs(songs)).toHaveLength(2);
   });
 });
 
+describe('parseBrightness', () => {
+  it('空欄は null（未入力）', () => {
+    expect(parseBrightness('  ')).toBeNull();
+  });
+
+  it('0〜100 の整数は数値にする', () => {
+    expect(parseBrightness('0')).toBe(0);
+    expect(parseBrightness(' 80 ')).toBe(80);
+    expect(parseBrightness('100')).toBe(100);
+  });
+
+  it('範囲外・小数・文字は undefined（不正）', () => {
+    expect(parseBrightness('101')).toBeUndefined();
+    expect(parseBrightness('-1')).toBeUndefined();
+    expect(parseBrightness('50.5')).toBeUndefined();
+    expect(parseBrightness('明るめ')).toBeUndefined();
+  });
+});
+
+describe('hasStageNotes', () => {
+  it('どの欄も空なら false', () => {
+    expect(hasStageNotes(song({ title: '曲A' }))).toBe(false);
+  });
+
+  it('明るさだけ入っていても true（0 も入力ありとして扱う）', () => {
+    expect(hasStageNotes(song({ lightingBrightness: '0' }))).toBe(true);
+  });
+
+  it('DB から取った値（null や数値）でも判定できる', () => {
+    expect(
+      hasStageNotes({
+        paNote: null,
+        lightingColor: null,
+        lightingBrightness: 0,
+        lightingNote: null,
+        procedureNote: null,
+      }),
+    ).toBe(true);
+  });
+});
+
 describe('validateSetlistSongs', () => {
-  it('メモが 300 文字以内なら null', () => {
-    const songs: SetlistSongInput[] = [
-      { title: '曲A', paNote: 'あ'.repeat(300), lightingNote: 'い'.repeat(300) },
+  it('すべて上限以内なら null', () => {
+    const songs = [
+      song({
+        title: '曲A',
+        paNote: 'あ'.repeat(300),
+        lightingColor: 'い'.repeat(50),
+        lightingBrightness: '100',
+        lightingNote: 'う'.repeat(300),
+        procedureNote: 'え'.repeat(500),
+      }),
     ];
     expect(validateSetlistSongs(songs)).toBeNull();
   });
 
   it('PAメモが 300 文字を超えるとエラー（DB の check 制約と同じ）', () => {
-    const songs: SetlistSongInput[] = [
-      { title: '曲A', paNote: 'あ'.repeat(301), lightingNote: '' },
-    ];
-    expect(validateSetlistSongs(songs)?.message).toContain('曲A');
+    expect(validateSetlistSongs([song({ title: '曲A', paNote: 'あ'.repeat(301) })])?.message).toContain(
+      '曲A',
+    );
+  });
+
+  it('照明の色が 50 文字を超えるとエラー', () => {
+    expect(
+      validateSetlistSongs([song({ title: '曲A', lightingColor: 'あ'.repeat(51) })])?.message,
+    ).toContain('照明の色');
+  });
+
+  it('明るさが 0〜100 の数字でなければエラー', () => {
+    expect(
+      validateSetlistSongs([song({ title: '曲A', lightingBrightness: '120' })])?.message,
+    ).toContain('明るさ');
   });
 
   it('照明メモが 300 文字を超えるとエラー', () => {
-    const songs: SetlistSongInput[] = [
-      { title: '曲A', paNote: '', lightingNote: 'い'.repeat(301) },
-    ];
-    expect(validateSetlistSongs(songs)?.message).toContain('照明メモ');
+    expect(
+      validateSetlistSongs([song({ title: '曲A', lightingNote: 'い'.repeat(301) })])?.message,
+    ).toContain('照明メモ');
+  });
+
+  it('手順が 500 文字を超えるとエラー', () => {
+    expect(
+      validateSetlistSongs([song({ title: '曲A', procedureNote: 'あ'.repeat(501) })])?.message,
+    ).toContain('手順');
   });
 
   it('曲名が空の行はチェックしない（保存時に捨てられるため）', () => {
-    const songs: SetlistSongInput[] = [{ title: '', paNote: 'あ'.repeat(301), lightingNote: '' }];
-    expect(validateSetlistSongs(songs)).toBeNull();
+    expect(validateSetlistSongs([song({ paNote: 'あ'.repeat(301) })])).toBeNull();
   });
 });
 
@@ -155,9 +233,7 @@ describe('validateLiveInput', () => {
   });
 
   it('曲の PA メモが 300 文字を超えるとエラー（songs フィールドとして返る）', () => {
-    const songs: SetlistSongInput[] = [
-      { title: '曲A', paNote: 'あ'.repeat(301), lightingNote: '' },
-    ];
+    const songs = [song({ title: '曲A', paNote: 'あ'.repeat(301) })];
     expect(validateLiveInput({ ...base, songs })?.field).toBe('songs');
   });
 });

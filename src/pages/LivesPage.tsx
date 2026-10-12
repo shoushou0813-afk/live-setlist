@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useArchive } from '../components/ArchiveProvider';
 import { LiveEditor } from '../components/LiveEditor';
 import { Loading } from '../components/Loading';
+import { StageNotes } from '../components/StageNotes';
 import { deleteLive, type Live } from '../lib/api/lives';
 import { formatDate } from '../lib/setlist';
 import styles from './LivesPage.module.css';
@@ -78,14 +79,8 @@ export function LivesPage() {
                           // 同じライブで同じ曲を 2 回演奏することがあるので、曲名ではなく曲順をキーにする
                           <li key={`${index}-${song.title}`}>
                             {song.title}
-                            {/* PA・照明班向けのメモ。入っているときだけ小さく添える */}
-                            {(song.paNote ?? song.lightingNote) && (
-                              <span className={styles.songNote}>
-                                {song.paNote && `PA: ${song.paNote}`}
-                                {song.paNote && song.lightingNote && ' ／ '}
-                                {song.lightingNote && `照明: ${song.lightingNote}`}
-                              </span>
-                            )}
+                            {/* PA・照明班向けの設定と手順。入っている欄だけ小さく添える */}
+                            <StageNotes {...song} />
                           </li>
                         ))}
                       </ol>

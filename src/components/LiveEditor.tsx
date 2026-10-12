@@ -3,6 +3,7 @@ import { saveLive, type Live } from '../lib/api/lives';
 import { useCircle } from './CircleProvider';
 import {
   emptySetlistSong,
+  hasStageNotes,
   parseSongTitlesFromText,
   setlistSongsFromTitles,
   songTitlesToText,
@@ -25,7 +26,10 @@ const toSongInputs = (songs: Live['songs']): SetlistSongInput[] =>
   songs.map((song) => ({
     title: song.title,
     paNote: song.paNote ?? '',
+    lightingColor: song.lightingColor ?? '',
+    lightingBrightness: song.lightingBrightness === null ? '' : String(song.lightingBrightness),
     lightingNote: song.lightingNote ?? '',
+    procedureNote: song.procedureNote ?? '',
   }));
 
 export function LiveEditor({ live, onCancel, onSaved }: Props) {
@@ -206,23 +210,65 @@ export function LiveEditor({ live, onCancel, onSaved }: Props) {
                     ✕
                   </button>
                 </div>
-                {/* PA・照明班向けのメモ。任意入力で、同じ曲でもライブごとに残る */}
-                <div className={styles.notes}>
-                  <input
-                    value={song.paNote}
-                    onChange={(e) => updateSong(index, 'paNote', e.target.value)}
-                    placeholder="PAメモ（任意）"
-                    aria-label={`${index + 1}曲目のPAメモ`}
-                    maxLength={300}
-                  />
-                  <input
-                    value={song.lightingNote}
-                    onChange={(e) => updateSong(index, 'lightingNote', e.target.value)}
-                    placeholder="照明メモ（任意）"
-                    aria-label={`${index + 1}曲目の照明メモ`}
-                    maxLength={300}
-                  />
-                </div>
+                {/*
+                  PA・照明班向けの設定と手順。任意入力で、同じ曲でもライブごとに残る。
+                  欄が多いので普段は閉じておき、入力済みの曲は見出しに「入力あり」を出す
+                */}
+                <details className={styles.stage}>
+                  <summary>
+                    PA・照明・手順
+                    {hasStageNotes(song) && <span className={styles.filled}>入力あり</span>}
+                  </summary>
+                  <label className={styles.sub}>
+                    PA
+                    <input
+                      value={song.paNote}
+                      onChange={(e) => updateSong(index, 'paNote', e.target.value)}
+                      placeholder="例：EQ低音+2、サビ前にコーラスのディレイON"
+                      maxLength={300}
+                    />
+                  </label>
+                  <div className={styles.light}>
+                    <label className={styles.sub}>
+                      照明の色
+                      <input
+                        value={song.lightingColor}
+                        onChange={(e) => updateSong(index, 'lightingColor', e.target.value)}
+                        placeholder="例：赤"
+                        maxLength={50}
+                      />
+                    </label>
+                    <label className={styles.sub}>
+                      明るさ（%）
+                      <input
+                        value={song.lightingBrightness}
+                        onChange={(e) => updateSong(index, 'lightingBrightness', e.target.value)}
+                        placeholder="0〜100"
+                        inputMode="numeric"
+                        maxLength={3}
+                      />
+                    </label>
+                  </div>
+                  <label className={styles.sub}>
+                    照明メモ
+                    <input
+                      value={song.lightingNote}
+                      onChange={(e) => updateSong(index, 'lightingNote', e.target.value)}
+                      placeholder="例：サビで白フラッシュ"
+                      maxLength={300}
+                    />
+                  </label>
+                  <label className={styles.sub}>
+                    手順（きっかけ・操作の流れ）
+                    <textarea
+                      rows={2}
+                      value={song.procedureNote}
+                      onChange={(e) => updateSong(index, 'procedureNote', e.target.value)}
+                      placeholder="例：イントロは暗転→歌い出しで全灯→サビ頭で白フラッシュ"
+                      maxLength={500}
+                    />
+                  </label>
+                </details>
               </li>
             ))}
             <button className={styles.more} onClick={() => setSongs([...songs, emptySetlistSong()])}>

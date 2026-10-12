@@ -1,11 +1,15 @@
 import { supabase } from '../supabase';
-import { normalizeSetlistSongs, type SetlistSongInput } from '../setlist';
+import { normalizeSetlistSongs, parseBrightness, type SetlistSongInput } from '../setlist';
 
-/** ライブでの 1 曲分。PA・照明メモは「このライブのこの曲」に紐づく。 */
+/** ライブでの 1 曲分。PA・照明の設定や手順は「このライブのこの曲」に紐づく。 */
 export type LiveSong = {
   title: string;
   paNote: string | null;
+  lightingColor: string | null;
+  /** 照明の明るさ（0〜100 の％） */
+  lightingBrightness: number | null;
   lightingNote: string | null;
+  procedureNote: string | null;
 };
 
 export type Live = {
@@ -32,7 +36,7 @@ export async function fetchLives(circleId: string): Promise<Live[]> {
   // 文字列連結にすると推論できなくなる。1 つのリテラルのままにしておく
   const { data, error } = await supabase
     .from('lives')
-    .select('id, title, performed_on, venue, band, created_by, setlist_items(position, pa_note, lighting_note, songs(title))')
+    .select('id, title, performed_on, venue, band, created_by, setlist_items(position, pa_note, lighting_note, lighting_color, lighting_brightness, procedure_note, songs(title))')
     .eq('circle_id', circleId)
     .order('performed_on', { ascending: false })
     .order('created_at', { ascending: false });
@@ -52,7 +56,10 @@ export async function fetchLives(circleId: string): Promise<Live[]> {
       .map((item) => ({
         title: item.songs?.title ?? '',
         paNote: item.pa_note,
+        lightingColor: item.lighting_color,
+        lightingBrightness: item.lighting_brightness,
         lightingNote: item.lighting_note,
+        procedureNote: item.procedure_note,
       })),
   }));
 }
@@ -82,11 +89,16 @@ export async function saveLive(input: SaveLiveInput): Promise<string> {
     p_performed_on: input.performedOn,
     p_venue: input.venue.trim(),
     p_band: input.band.trim(),
-    // RPC 側は [{ title, pa_note, lighting_note }, ...] の jsonb を受け取る
+    // RPC 側は [{ title, pa_note, lighting_note, ... }, ...] の jsonb を受け取る。
+    // 明るさは画面では文字列なので、ここで数値（空欄は null）に直す。
+    // 不正な値は画面側の validateLiveInput で先に弾いているので、ここでは null に倒す
     p_songs: normalizeSetlistSongs(input.songs).map((song) => ({
       title: song.title,
       pa_note: song.paNote,
+      lighting_color: song.lightingColor,
+      lighting_brightness: parseBrightness(song.lightingBrightness) ?? null,
       lighting_note: song.lightingNote,
+      procedure_note: song.procedureNote,
     })),
   });
 
