@@ -1,0 +1,145 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.card {
+  background: var(--paper);
+  color: var(--ink);
+  width: 100%;
+  max-width: 380px;
+  border-radius: 14px;
+  padding: 26px 22px;
+}
+
+.title {
+  font-size: 30px;
+  font-weight: 900;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.lead {
+  color: #5b6479;
+  font-size: 13px;
+  margin: 6px 0 4px;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 14px;
+}
+
+.label input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  border: 1.5px solid #c9cfdb;
+  border-radius: 6px;
+  padding: 9px;
+  font: inherit;
+  font-weight: 400;
+  background: #fff;
+  color: var(--ink);
+}
+
+.error {
+  color: var(--warn);
+  font-size: 13px;
+  margin: 14px 0 0;
+  line-height: 1.5;
+}
+
+.submit {
+  width: 100%;
+  margin-top: 18px;
+  background: var(--stage);
+  color: var(--paper);
+  border: 0;
+  border-radius: 8px;
+  padding: 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* ここから下は新規登録・サークル参加の画面で足したもの */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 16px;
+  border-bottom: 2px solid #dfe3ec;
+}
+
+.tabs button {
+  flex: 1;
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 9px 4px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5b6479;
+  cursor: pointer;
+}
+
+.tabs button.on {
+  color: var(--ink);
+  border-color: var(--tape);
+}
+
+.note {
+  color: #5b6479;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+
+.notice {
+  background: #eef3ff;
+  border-left: 4px solid var(--stage);
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 16px 0 0;
+  padding: 10px 12px;
+}
+
+.link {
+  display: inline-block;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-top: 14px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--stage);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-align: center;
+  background: #f3f5fa;
+  border-radius: 8px;
+  margin: 10px 0 0;
+  padding: 12px;
+}

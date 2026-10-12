@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../hooks/useSession';
 import { Loading } from '../components/Loading';
-import styles from './LoginPage.module.css';
+import styles from './AuthCard.module.css';
 
 export function LoginPage() {
   const { session, loading } = useSession();
@@ -35,7 +35,7 @@ export function LoginPage() {
     <div className={styles.page}>
       <form className={styles.card} onSubmit={handleSubmit}>
         <h1 className={styles.title}>演奏した曲</h1>
-        <p className={styles.lead}>ライブのセットリストを記録するアプリです。</p>
+        <p className={styles.lead}>サークルのライブのセットリストを記録するアプリです。</p>
 
         <label className={styles.label}>
           メールアドレス
@@ -68,6 +68,10 @@ export function LoginPage() {
         <button className={styles.submit} type="submit" disabled={submitting}>
           {submitting ? 'ログイン中…' : 'ログイン'}
         </button>
+
+        <Link className={styles.link} to="/signup">
+          はじめての人はこちら（部員登録）
+        </Link>
       </form>
     </div>
   );
