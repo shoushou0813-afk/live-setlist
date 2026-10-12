@@ -12,6 +12,7 @@ import {
   setlistSongsFromTitles,
   songTitleKey,
   songTitlesToText,
+  sortNewestFirst,
   sortSongs,
   validateLiveInput,
   validateSetlistSongs,
@@ -302,6 +303,26 @@ describe('maxPlayCount', () => {
 
   it('曲が 0 件でも 1 を返す（バーの幅計算で 0 除算しないため）', () => {
     expect(maxPlayCount([])).toBe(1);
+  });
+});
+
+describe('sortNewestFirst', () => {
+  it('新しいライブ順、同じライブ内は曲順で並べる', () => {
+    const items = [
+      { id: 'a', performedOn: '2025-04-18', position: 1 },
+      { id: 'b', performedOn: '2026-06-20', position: 5 },
+      { id: 'c', performedOn: '2026-06-20', position: 2 },
+    ];
+    expect(sortNewestFirst(items).map((item) => item.id)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('元の配列は並べ替えない', () => {
+    const items = [
+      { performedOn: '2025-01-01', position: 1 },
+      { performedOn: '2026-01-01', position: 1 },
+    ];
+    sortNewestFirst(items);
+    expect(items[0].performedOn).toBe('2025-01-01');
   });
 });
 

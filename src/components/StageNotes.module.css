@@ -24,3 +24,12 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
+
+/* 紺の背景（曲一覧）に置くときは文字を明るくする */
+.onStage {
+  color: #c5cde0;
+}
+
+.onStage dt {
+  color: var(--tape);
+}

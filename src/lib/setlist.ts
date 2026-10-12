@@ -208,6 +208,18 @@ export function maxPlayCount(songs: readonly SongStat[]): number {
   return Math.max(1, ...songs.map((song) => song.playCount));
 }
 
+/**
+ * 演奏記録を新しいライブ順に並べる。同じライブ内では曲順（何曲目か）の順。
+ * DB から返る順番は保証されないので、表示の前に必ずここを通す。
+ */
+export function sortNewestFirst<T extends { performedOn: string; position: number }>(
+  items: readonly T[],
+): T[] {
+  return [...items].sort(
+    (a, b) => b.performedOn.localeCompare(a.performedOn) || a.position - b.position,
+  );
+}
+
 /** 日付（YYYY-MM-DD）を画面表示用の「2026/02/14」にする。 */
 export function formatDate(isoDate: string): string {
   return isoDate.split('-').join('/');

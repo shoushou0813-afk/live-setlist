@@ -6,6 +6,8 @@ type Props = {
   lightingBrightness: number | null;
   lightingNote: string | null;
   procedureNote: string | null;
+  /** 置く場所の背景。紙色のセトリカード（既定）か、紺のステージ背景か */
+  tone?: 'paper' | 'stage';
 };
 
 /** 照明の色・明るさ・メモを「赤 ／ 80% ／ サビで白フラッシュ」のように 1 行にまとめる。 */
@@ -29,7 +31,7 @@ export function StageNotes(props: Props) {
   if (!props.paNote && !lighting && !props.procedureNote) return null;
 
   return (
-    <dl className={styles.notes}>
+    <dl className={props.tone === 'stage' ? `${styles.notes} ${styles.onStage}` : styles.notes}>
       {props.paNote && (
         <div>
           <dt>PA</dt>
