@@ -4,10 +4,11 @@
 チェックが付いているものは実装済み（コードはリポジトリに入っている）。
 
 ## 0. 準備（人がやる・未完了）
-- [ ] すでに schema.sql を実行済みなら、SQL Editor で
-      `supabase/migrations/20261012_lighting_and_procedure.sql` を実行（照明の色・明るさ・手順の列を追加）
 - [ ] Supabase で新規プロジェクト作成
 - [ ] SQL Editor で `supabase/schema.sql` を実行
+- [ ] 古い版の schema.sql を実行済みの場合だけ、SQL Editor で `supabase/migrations/` の SQL を日付順に実行
+      1. `20261012_lighting_and_procedure.sql`（照明の色・明るさ・手順の列を追加）
+      2. `20261115_security_hardening.sql`（招待コードの作り直し・登録者の固定・管理者不在の防止）
 - [ ] Authentication > Sign In / Providers で「Allow new users to sign up」を**オン**
       （部員が自分でアカウントを作るため。サークルのデータは招待コードが無いと触れない）
 - [ ] 部内だけで使うなら Authentication > Providers > Email の
@@ -39,6 +40,9 @@
 - [x] `CircleProvider`：いま見ているサークルを 1 か所で保持（選択は localStorage に記憶）
 - [x] `RequireCircle`：どこにも所属していなければ `/join` へ
 - [x] `JoinCirclePage`：招待コードで参加／サークルを作る。作成後に招待コードを表示
+- [x] 管理者が招待コードを作り直せる（RPC `regenerate_invite_code`、ヘッダーの「作り直す」）
+- [x] 登録者の固定、最後の管理者の退部・降格の防止、管理者による役割変更（DB 側のみ）
+- [ ] 部員の削除・役割変更・退部の画面（DB 側のルールは実装済み）
 - [x] 入力チェック（表示名・サークル名・招待コード・パスワード）を純粋関数にして Vitest でテスト
 
 ## 4. データ取得・保存の関数
