@@ -94,6 +94,20 @@ export async function joinCircle(inviteCode: string, displayName: string): Promi
   return data;
 }
 
+/**
+ * 招待コードを作り直す（管理者だけ）。古いコードはその場で使えなくなる。
+ * circles の invite_code は直接 update できないようにしてあり、この RPC だけが変更経路。
+ * 管理者かどうかの判定も RPC の中（DB 側）で行うので、画面のボタンを隠すだけに頼っていない。
+ */
+export async function regenerateInviteCode(circleId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('regenerate_invite_code', {
+    p_circle_id: circleId,
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 /** 自分の表示名を変更する（他人の行は RLS で更新できない）。 */
 export async function updateMyDisplayName(
   circleId: string,

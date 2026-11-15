@@ -219,6 +219,12 @@ export type Database = {
         };
         Returns: string;
       };
+      regenerate_invite_code: {
+        Args: {
+          p_circle_id: string;
+        };
+        Returns: string;
+      };
       save_live: {
         Args: {
           p_live_id: string | null;
