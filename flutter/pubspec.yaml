@@ -1,0 +1,38 @@
+name: live_setlist
+description: "出演したライブのセットリストを記録し、演奏した曲を集計するアプリ（Flutter版）"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.18.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # フォントはアプリに同梱する（通信できなくても同じ見た目になるように）。
+  # どちらも SIL Open Font License で、同梱・再配布してよい（ライセンス文は assets/fonts/ に置いている）
+  fonts:
+    - family: ZenKakuGothicNew
+      fonts:
+        - asset: assets/fonts/ZenKakuGothicNew-Regular.ttf
+        - asset: assets/fonts/ZenKakuGothicNew-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/ZenKakuGothicNew-Black.ttf
+          weight: 900
+    - family: KleeOne
+      fonts:
+        - asset: assets/fonts/KleeOne-SemiBold.ttf
+          weight: 600
