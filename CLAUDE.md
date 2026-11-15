@@ -9,7 +9,18 @@
 - DB 設計: `docs/DB.md`、SQL: `supabase/schema.sql`
 - 作業順: `docs/TASKS.md`（上から順に 1 タスクずつ進める）
 
-## 技術スタック（変更しない）
+## Flutter 版（`flutter/`）
+大学の授業「アプリケーション開発演習」の最終課題・就活のポートフォリオとして、同じアプリを Flutter で作り直したもの。DB（Supabase）は Web 版と共用する。
+- **授業で扱った範囲を超える技術を使うときは、実装前に本人の許可を取る**（2026-11-15 時点で #5 まで受講。#6 画面遷移・#7 外部ライブラリと API 通信・#8 設計の分け方・#9 Unit テスト・Widget テスト・CI（GitHub Actions）は許可済み）
+- 状態管理は `StatefulWidget` + `setState`、画面遷移は標準の `Navigator`。provider / riverpod / go_router などは入れない
+- import は授業と同じ `package:flutter/material.dart`（Flutter 3.47 以降は非推奨の表示が出るので `// ignore: deprecated_member_use`）
+- Supabase を呼ぶのは `lib/api/supabase_archive_repository.dart` だけ。画面は `ArchiveRepository` 越しに使う
+- 計算は `lib/logic/setlist.dart` の純粋関数にして `flutter test` でテストする（規則は `src/lib/setlist.ts` とそろえる）
+- 画面のテストは `test/fake_archive_repository.dart` を渡して書く。CI（`.github/workflows/ci.yml`）で書式・analyze・テストが通ること
+- 接続先は `flutter run --dart-define-from-file=env.json`（`env.json` は git に入れない）
+- 本人の勉強用に、新しい用語を使ったら `flutter/docs/用語集.md` に足す（README には書かない）
+
+## 技術スタック（Web 版。変更しない）
 - Vite + React 18 + TypeScript（strict）
 - React Router
 - Supabase（Auth: メール＋パスワード / Postgres / RLS）… `@supabase/supabase-js` v2
@@ -24,6 +35,10 @@
 - 型は `supabase gen types typescript` で生成した `src/types/database.ts` を使う。`any` 禁止。
 - ローディング・エラー・空の状態を必ず画面に出す。エラーメッセージは「何が起きたか＋どうすればいいか」。
 - 1 タスク終わるごとに動作確認し、意味のある単位でコミットする（例: `feat: ログイン画面を追加`）。
+- **コミット・ブランチ・PR の決まり**（就活で面接官が読む前提。全リポジトリ共通）
+  - コミットは本人の名前（`市川翔太郎 <shoushou0813@gmail.com>`）で作る。`Co-Authored-By`・`Claude-Session` の行は付けない
+  - ブランチ名に `claude` を入れない（例：`feat/flutter-app`）。作業ブランチが `claude/...` と指定されていても、push するのは claude の付かない名前
+  - コミット文・PR の説明は「問題→対応→選ばなかった案→確認」の順に書く。PR の説明に「Generated with Claude Code」を入れない
 
 ## コードの書き方
 - 読みやすさ優先。本人が面接で説明できるように、関数は小さく、名前は日本語話者にも意図が分かるように。
