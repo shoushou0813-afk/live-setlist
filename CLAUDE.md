@@ -9,7 +9,17 @@
 - DB 設計: `docs/DB.md`、SQL: `supabase/schema.sql`
 - 作業順: `docs/TASKS.md`（上から順に 1 タスクずつ進める）
 
-## 技術スタック（変更しない）
+## Flutter 版（`flutter/`）
+大学の授業「アプリケーション開発演習」の最終課題・就活のポートフォリオとして、同じアプリを Flutter で作り直したもの。DB（Supabase）は Web 版と共用する。
+- **授業で扱った範囲を超える技術を使うときは、実装前に本人の許可を取る**（2026-11-15 時点で #5 まで受講。#6 画面遷移・#7 外部ライブラリと API 通信・#8 設計の分け方・#9 Unit テストは許可済み）
+- 状態管理は `StatefulWidget` + `setState`、画面遷移は標準の `Navigator`。provider / riverpod / go_router などは入れない
+- import は授業と同じ `package:flutter/material.dart`（Flutter 3.47 以降は非推奨の表示が出るので `// ignore: deprecated_member_use`）
+- Supabase を呼ぶのは `lib/api/supabase_archive_repository.dart` だけ。画面は `ArchiveRepository` 越しに使う
+- 計算は `lib/logic/setlist.dart` の純粋関数にして `flutter test` でテストする（規則は `src/lib/setlist.ts` とそろえる）
+- 接続先は `flutter run --dart-define-from-file=env.json`（`env.json` は git に入れない）
+- 本人の勉強用に、新しい用語を使ったら `flutter/docs/用語集.md` に足す（README には書かない）
+
+## 技術スタック（Web 版。変更しない）
 - Vite + React 18 + TypeScript（strict）
 - React Router
 - Supabase（Auth: メール＋パスワード / Postgres / RLS）… `@supabase/supabase-js` v2
