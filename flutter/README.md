@@ -29,7 +29,8 @@ flutter run --dart-define-from-file=env.json
 
 - `env.json` は `.gitignore` 済み。キーをコードに直接書かないため、起動時に `--dart-define-from-file` で渡している
 - 設定し忘れて起動すると、何をすればいいかを画面に表示する
-- テスト：`flutter test`
+- テスト：`flutter test`（計算のテスト 24 件＋画面のテスト 9 件）
+- push とプルリクエストのたびに、GitHub Actions で書式・静的解析・テストを自動で実行している（`../.github/workflows/ci.yml`）
 
 ## 使用技術と選んだ理由
 
@@ -39,7 +40,8 @@ flutter run --dart-define-from-file=env.json
 | 認証・DB | Supabase（`supabase_flutter`） | Web 版と同じ DB を使える。アクセス制御を DB 側（RLS）に書ける |
 | 状態管理 | `StatefulWidget` と `setState` だけ | 画面は 2 つでデータも 2 種類なので、追加のライブラリを入れずに済む規模だと判断した |
 | フォント | Zen Kaku Gothic New / Klee One を同梱 | 通信できないときも同じ見た目にするため（どちらも SIL Open Font License） |
-| テスト | `flutter test` | 画面から切り離した計算の部分（純粋関数）を対象にしている |
+| テスト | `flutter test` | 計算の部分（純粋関数）と、画面の操作（Widget テスト）を確かめる |
+| CI | GitHub Actions | テストを走らせ忘れても、push のたびに自動で確かめられる |
 
 ## 設計
 
@@ -55,6 +57,8 @@ lib/
   screens/                       ログイン・メイン（タブ）・曲一覧・ライブ
   widgets/                       編集画面・読み込み中／エラー表示
 test/setlist_test.dart           logic/setlist.dart のテスト（24 件）
+test/home_screen_test.dart       画面のテスト（9 件）。通信は偽物の Repository に差し替える
+test/fake_archive_repository.dart  テスト用の偽物の Repository
 ```
 
 設計で意識した点：
@@ -62,6 +66,9 @@ test/setlist_test.dart           logic/setlist.dart のテスト（24 件）
 - **画面は Supabase を直接呼ばない**：画面が知っているのは `ArchiveRepository`（取得・保存の約束ごと）だけで、
   Supabase を呼ぶのは `supabase_archive_repository.dart` だけ。画面と通信を分けたので、
   通信の中身を差し替えても画面を直さなくてよい。
+- **画面のテストは通信を偽物に差し替える**：画面は `ArchiveRepository` しか知らないので、
+  テストでは偽物（`FakeArchiveRepository`）を渡し、Supabase につながずに
+  「保存すると整えた曲名で保存される」「削除は確認してから行う」などを確かめている。
 - **計算は純粋関数にしてテストする**：曲名の整形・並び替えなどを `logic/setlist.dart` にまとめ、
   通信や画面を用意せずにテストできるようにした。規則は Web 版（`src/lib/setlist.ts`）とそろえている。
 - **データの取得はメイン画面で 1 回**：ヘッダーの本数・曲数と 2 つのタブが同じデータを見るので、
@@ -82,4 +89,4 @@ DB の設計は [`../docs/DB.md`](../docs/DB.md)、SQL は [`../supabase/schema.
 
 ## 今後の改善
 
-新規登録・パスワードリセット、曲名の統合・名前の変更、オフラインでの閲覧、CI（自動テスト）の追加
+新規登録・パスワードリセット、曲名の統合・名前の変更、オフラインでの閲覧
