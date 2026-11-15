@@ -1,8 +1,12 @@
-# CLAUDE.md — ライブ演奏曲アーカイブ
+# CLAUDE.md — サークルのライブ演奏曲アーカイブ
 
 ## このプロジェクトについて
-自分が出演したライブのセットリストを登録し、演奏した曲を一覧・集計できるWebアプリ。
+サークルで出演したライブのセットリストを部員みんなで登録し、演奏した曲を一覧・集計できるWebアプリ。
 インターンの提出物（ポートフォリオ）にもする。
+データの持ち主は個人ではなく**サークル**。部員は招待コードで参加し、所属していれば全員が同じ記録を
+見て編集できる。他のサークルからは一切見えない。
+曲ごとにPA・照明の設定メモも残せる（同じ曲でも会場・機材で設定が変わるため）ようにし、
+PA班・照明班が次に同じ曲をやるときに参照できるようにしている。
 
 - 画面と見た目の元ネタ: `reference/prototype.jsx`（Claudeアーティファクト版の試作。保存に `window.storage` を使っているが、本番では Supabase に置き換える）
 - 仕様: `docs/SPEC.md`
@@ -18,7 +22,11 @@
 - デプロイ: Vercel
 
 ## 守ること
-- **他人のデータは絶対に見えない・触れない**こと。アクセス制御は RLS（DB 側）で行い、フロントの条件分岐だけに頼らない。
+- **他のサークルのデータは絶対に見えない・触れない**こと。アクセス制御は RLS（DB 側）で行い、フロントの条件分岐だけに頼らない。所属判定は `is_circle_member()`（security definer）を使う（RLS の無限再帰を避けるため）。
+- サークルの作成・参加は RPC（`create_circle` / `join_circle`）経由だけにする。`circles` に insert のポリシーは作らない。
+- 招待コードの変更は RPC `regenerate_invite_code`（管理者のみ）経由だけ。`circles` で直接 update できる列はサークル名だけにしてある。
+- ライブの登録者（`created_by`）はフロントから送らない。DB のトリガーが「ログイン中の本人」に固定する。
+- すでに動いている DB への変更は `supabase/migrations/` に追加用 SQL を足し、`schema.sql` にも同じ内容を入れる。
 - Supabase のキーは `.env.local` の `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` のみ。`service_role` キーはフロントに絶対置かない。`.env*` は git に入れない（`.env.example` だけコミット）。
 - セットリスト保存は RPC `save_live` を使う（ライブ・曲・曲順を 1 トランザクションで保存するため）。フロントから `setlist_items` を個別に insert しない。
 - 型は `supabase gen types typescript` で生成した `src/types/database.ts` を使う。`any` 禁止。
@@ -40,15 +48,23 @@
 src/
   main.tsx / App.tsx        ルーティング
   lib/supabase.ts           クライアント生成
+  lib/api/circles.ts        所属・部員名簿・サークル作成・参加
   lib/api/lives.ts          ライブ取得・保存・削除
   lib/api/songs.ts          曲一覧・曲ごとの出演ライブ
   hooks/useSession.ts       ログイン状態
   components/RequireAuth.tsx
+  components/CircleProvider.tsx  いま見ているサークル（＋RequireCircle）
+  components/ArchiveProvider.tsx ライブと集計をまとめて保持
+  components/Header.tsx          ヘッダー（招待コードの表示・作り直し）
+  components/StageNotes.tsx      PA・照明・手順の表示
   pages/LoginPage.tsx
+  pages/SignUpPage.tsx
+  pages/JoinCirclePage.tsx
   pages/SongsPage.tsx
   pages/LivesPage.tsx
   components/LiveEditor.tsx
   types/database.ts         自動生成
 supabase/schema.sql
+supabase/migrations/          既存 DB 向けの追加用 SQL（日付順に実行）
 supabase/seed.sql
 ```

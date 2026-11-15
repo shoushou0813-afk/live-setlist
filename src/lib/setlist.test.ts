@@ -1,16 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import {
+  emptySetlistSong,
+  hasStageNotes,
   filterSongs,
   formatDate,
   maxPlayCount,
+  normalizeSetlistSongs,
   normalizeSongTitles,
+  parseBrightness,
   parseSongTitlesFromText,
+  setlistSongsFromTitles,
   songTitleKey,
   songTitlesToText,
+  sortNewestFirst,
   sortSongs,
   validateLiveInput,
+  validateSetlistSongs,
+  type SetlistSongInput,
   type SongStat,
 } from './setlist';
+
+/** テスト用：指定した欄だけ埋めた曲入力を作る（残りは空欄） */
+const song = (fields: Partial<SetlistSongInput>): SetlistSongInput => ({
+  ...emptySetlistSong(),
+  ...fields,
+});
 
 describe('normalizeSongTitles', () => {
   it('前後の空白を除き、空文字を捨てる', () => {
@@ -58,8 +72,141 @@ describe('songTitleKey', () => {
   });
 });
 
+describe('emptySetlistSong', () => {
+  it('曲名・PA・照明・手順の欄がすべて空の曲を作る', () => {
+    expect(emptySetlistSong()).toEqual({
+      title: '',
+      paNote: '',
+      lightingColor: '',
+      lightingBrightness: '',
+      lightingNote: '',
+      procedureNote: '',
+    });
+  });
+});
+
+describe('setlistSongsFromTitles', () => {
+  it('曲名から設定欄が空の曲入力を作る（空行・前後空白は除く）', () => {
+    expect(setlistSongsFromTitles(['  Blue Line ', '', '夜明けのバス'])).toEqual([
+      song({ title: 'Blue Line' }),
+      song({ title: '夜明けのバス' }),
+    ]);
+  });
+});
+
+describe('normalizeSetlistSongs', () => {
+  it('前後の空白を除き、曲名が空の行は捨てる（設定が入っていても捨てる）', () => {
+    const songs = [
+      song({ title: '  Blue Line ', paNote: ' EQ低音+2 ', lightingBrightness: ' 80 ' }),
+      song({ title: '   ', paNote: '曲名が無いので消えるはず' }),
+    ];
+    expect(normalizeSetlistSongs(songs)).toEqual([
+      song({ title: 'Blue Line', paNote: 'EQ低音+2', lightingBrightness: '80' }),
+    ]);
+  });
+
+  it('同じ曲を 2 回演奏した場合は重複を残す', () => {
+    const songs = [
+      song({ title: 'Blue Line', paNote: '1回目' }),
+      song({ title: 'Blue Line', paNote: '2回目' }),
+    ];
+    expect(normalizeSetlistSongs(songs)).toHaveLength(2);
+  });
+});
+
+describe('parseBrightness', () => {
+  it('空欄は null（未入力）', () => {
+    expect(parseBrightness('  ')).toBeNull();
+  });
+
+  it('0〜100 の整数は数値にする', () => {
+    expect(parseBrightness('0')).toBe(0);
+    expect(parseBrightness(' 80 ')).toBe(80);
+    expect(parseBrightness('100')).toBe(100);
+  });
+
+  it('範囲外・小数・文字は undefined（不正）', () => {
+    expect(parseBrightness('101')).toBeUndefined();
+    expect(parseBrightness('-1')).toBeUndefined();
+    expect(parseBrightness('50.5')).toBeUndefined();
+    expect(parseBrightness('明るめ')).toBeUndefined();
+  });
+});
+
+describe('hasStageNotes', () => {
+  it('どの欄も空なら false', () => {
+    expect(hasStageNotes(song({ title: '曲A' }))).toBe(false);
+  });
+
+  it('明るさだけ入っていても true（0 も入力ありとして扱う）', () => {
+    expect(hasStageNotes(song({ lightingBrightness: '0' }))).toBe(true);
+  });
+
+  it('DB から取った値（null や数値）でも判定できる', () => {
+    expect(
+      hasStageNotes({
+        paNote: null,
+        lightingColor: null,
+        lightingBrightness: 0,
+        lightingNote: null,
+        procedureNote: null,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe('validateSetlistSongs', () => {
+  it('すべて上限以内なら null', () => {
+    const songs = [
+      song({
+        title: '曲A',
+        paNote: 'あ'.repeat(300),
+        lightingColor: 'い'.repeat(50),
+        lightingBrightness: '100',
+        lightingNote: 'う'.repeat(300),
+        procedureNote: 'え'.repeat(500),
+      }),
+    ];
+    expect(validateSetlistSongs(songs)).toBeNull();
+  });
+
+  it('PAメモが 300 文字を超えるとエラー（DB の check 制約と同じ）', () => {
+    expect(validateSetlistSongs([song({ title: '曲A', paNote: 'あ'.repeat(301) })])?.message).toContain(
+      '曲A',
+    );
+  });
+
+  it('照明の色が 50 文字を超えるとエラー', () => {
+    expect(
+      validateSetlistSongs([song({ title: '曲A', lightingColor: 'あ'.repeat(51) })])?.message,
+    ).toContain('照明の色');
+  });
+
+  it('明るさが 0〜100 の数字でなければエラー', () => {
+    expect(
+      validateSetlistSongs([song({ title: '曲A', lightingBrightness: '120' })])?.message,
+    ).toContain('明るさ');
+  });
+
+  it('照明メモが 300 文字を超えるとエラー', () => {
+    expect(
+      validateSetlistSongs([song({ title: '曲A', lightingNote: 'い'.repeat(301) })])?.message,
+    ).toContain('照明メモ');
+  });
+
+  it('手順が 500 文字を超えるとエラー', () => {
+    expect(
+      validateSetlistSongs([song({ title: '曲A', procedureNote: 'あ'.repeat(501) })])?.message,
+    ).toContain('手順');
+  });
+
+  it('曲名が空の行はチェックしない（保存時に捨てられるため）', () => {
+    expect(validateSetlistSongs([song({ paNote: 'あ'.repeat(301) })])).toBeNull();
+  });
+});
+
 describe('validateLiveInput', () => {
-  const base = { title: '定期ライブ', performedOn: '2026-02-14', venue: '', songs: [] };
+  const base = { title: '定期ライブ', performedOn: '2026-02-14', venue: '', band: '', songs: [] };
 
   it('必須が埋まっていれば null', () => {
     expect(validateLiveInput(base)).toBeNull();
@@ -79,6 +226,16 @@ describe('validateLiveInput', () => {
 
   it('日付が空ならエラー', () => {
     expect(validateLiveInput({ ...base, performedOn: '' })?.field).toBe('performedOn');
+  });
+
+  it('バンド名が 100 文字を超えるとエラー（DB の check 制約と同じ）', () => {
+    expect(validateLiveInput({ ...base, band: 'あ'.repeat(101) })?.field).toBe('band');
+    expect(validateLiveInput({ ...base, band: 'あ'.repeat(100) })).toBeNull();
+  });
+
+  it('曲の PA メモが 300 文字を超えるとエラー（songs フィールドとして返る）', () => {
+    const songs = [song({ title: '曲A', paNote: 'あ'.repeat(301) })];
+    expect(validateLiveInput({ ...base, songs })?.field).toBe('songs');
   });
 });
 
@@ -146,6 +303,26 @@ describe('maxPlayCount', () => {
 
   it('曲が 0 件でも 1 を返す（バーの幅計算で 0 除算しないため）', () => {
     expect(maxPlayCount([])).toBe(1);
+  });
+});
+
+describe('sortNewestFirst', () => {
+  it('新しいライブ順、同じライブ内は曲順で並べる', () => {
+    const items = [
+      { id: 'a', performedOn: '2025-04-18', position: 1 },
+      { id: 'b', performedOn: '2026-06-20', position: 5 },
+      { id: 'c', performedOn: '2026-06-20', position: 2 },
+    ];
+    expect(sortNewestFirst(items).map((item) => item.id)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('元の配列は並べ替えない', () => {
+    const items = [
+      { performedOn: '2025-01-01', position: 1 },
+      { performedOn: '2026-01-01', position: 1 },
+    ];
+    sortNewestFirst(items);
+    expect(items[0].performedOn).toBe('2025-01-01');
   });
 });
 

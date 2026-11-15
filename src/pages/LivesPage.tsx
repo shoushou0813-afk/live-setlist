@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useArchive } from '../components/ArchiveProvider';
 import { LiveEditor } from '../components/LiveEditor';
 import { Loading } from '../components/Loading';
+import { StageNotes } from '../components/StageNotes';
 import { deleteLive, type Live } from '../lib/api/lives';
 import { formatDate } from '../lib/setlist';
 import styles from './LivesPage.module.css';
@@ -10,7 +11,7 @@ import styles from './LivesPage.module.css';
 type EditorState = { open: false } | { open: true; live: Live | null };
 
 export function LivesPage() {
-  const { lives, loading, error, reload } = useArchive();
+  const { lives, loading, error, reload, memberName } = useArchive();
   const [editor, setEditor] = useState<EditorState>({ open: false });
   const [openLiveId, setOpenLiveId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -44,7 +45,9 @@ export function LivesPage() {
       )}
 
       {lives.length === 0 ? (
-        <p className={styles.empty}>最初のライブを追加すると、ここに並びます。</p>
+        <p className={styles.empty}>
+          まだ記録がありません。誰かが「＋ ライブを追加」すると、サークル全員の画面に出ます。
+        </p>
       ) : (
         <div className={styles.sheets}>
           {lives.map((live) => {
@@ -59,6 +62,7 @@ export function LivesPage() {
                 >
                   <span className={styles.date}>{formatDate(live.performedOn)}</span>
                   <span className={styles.name}>{live.title}</span>
+                  {live.band && <span className={styles.band}>{live.band}</span>}
                   {live.venue && <span className={styles.venue}>{live.venue}</span>}
                   {!open && (
                     <span className={styles.venue}>{live.songs.length}曲 ・ タップで開く</span>
@@ -73,10 +77,16 @@ export function LivesPage() {
                       <ol className={styles.songs}>
                         {live.songs.map((song, index) => (
                           // 同じライブで同じ曲を 2 回演奏することがあるので、曲名ではなく曲順をキーにする
-                          <li key={`${index}-${song}`}>{song}</li>
+                          <li key={`${index}-${song.title}`}>
+                            {song.title}
+                            {/* PA・照明班向けの設定と手順。入っている欄だけ小さく添える */}
+                            <StageNotes {...song} />
+                          </li>
                         ))}
                       </ol>
                     )}
+                    {/* 共同編集なので「誰が入れた記録か」が分かるようにする */}
+                    <p className={styles.by}>登録：{memberName(live.createdBy)}</p>
                     <div className={styles.row}>
                       <button onClick={() => setEditor({ open: true, live })}>編集</button>
                       <button className={styles.danger} onClick={() => void handleDelete(live)}>

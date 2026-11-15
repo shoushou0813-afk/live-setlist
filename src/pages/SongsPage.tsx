@@ -1,14 +1,22 @@
 import { useMemo, useState } from 'react';
 import { useArchive } from '../components/ArchiveProvider';
 import { Loading } from '../components/Loading';
-import { fetchLivesForSong, type LiveOfSong } from '../lib/api/songs';
-import { filterSongs, formatDate, maxPlayCount, sortSongs, type SongSort } from '../lib/setlist';
+import { StageNotes } from '../components/StageNotes';
+import { fetchSongHistory, type SongPerformance } from '../lib/api/songs';
+import {
+  filterSongs,
+  formatDate,
+  hasStageNotes,
+  maxPlayCount,
+  sortSongs,
+  type SongSort,
+} from '../lib/setlist';
 import styles from './SongsPage.module.css';
 
-/** 開いている曲の「演奏したライブ」。曲をタップしたときだけ取りに行く */
+/** 開いている曲の演奏記録（PA・照明の設定つき）。曲をタップしたときだけ取りに行く */
 type OpenSong = {
   id: string;
-  lives: LiveOfSong[] | null;
+  history: SongPerformance[] | null;
   error: string | null;
 };
 
@@ -30,11 +38,11 @@ export function SongsPage() {
       setOpen(null);
       return;
     }
-    setOpen({ id: songId, lives: null, error: null });
+    setOpen({ id: songId, history: null, error: null });
     try {
-      const lives = await fetchLivesForSong(songId);
+      const history = await fetchSongHistory(songId);
       // 開いている間に別の曲をタップされていたら、遅れて届いた結果は捨てる
-      setOpen((current) => (current?.id === songId ? { ...current, lives } : current));
+      setOpen((current) => (current?.id === songId ? { ...current, history } : current));
     } catch (e) {
       console.error(e);
       setOpen((current) =>
@@ -104,18 +112,34 @@ export function SongsPage() {
                   <div className={styles.where}>
                     {open.error ? (
                       <p role="alert">{open.error}</p>
-                    ) : open.lives === null ? (
+                    ) : open.history === null ? (
                       <p>読み込み中…</p>
                     ) : (
-                      <ul>
-                        {open.lives.map((live) => (
-                          <li key={live.id}>
-                            <span className={styles.date}>{formatDate(live.performedOn)}</span>
-                            {live.title}
-                            {live.venue && `（${live.venue}）`}
-                          </li>
-                        ))}
-                      </ul>
+                      <>
+                        {/* 記録が 1 件も無いときは、どこで入力すればいいかまで案内する */}
+                        {!open.history.some(hasStageNotes) && (
+                          <p>
+                            この曲にはまだPA・照明の記録がありません。ライブの編集画面の「PA・照明・手順」から残せます。
+                          </p>
+                        )}
+                        <ul>
+                          {open.history.map((performance, index) => (
+                            <li key={`${performance.liveId}-${performance.position}`}>
+                              <span className={styles.date}>
+                                {formatDate(performance.performedOn)}
+                              </span>
+                              {/* 一番新しい演奏が次に同じ曲をやるときの手本になるので目印を付ける */}
+                              {index === 0 && <span className={styles.latest}>前回</span>}
+                              {performance.liveTitle}
+                              {performance.venue && `（${performance.venue}）`}
+                              {performance.band && (
+                                <span className={styles.band}>{performance.band}</span>
+                              )}
+                              <StageNotes {...performance} tone="stage" />
+                            </li>
+                          ))}
+                        </ul>
+                      </>
                     )}
                   </div>
                 )}
