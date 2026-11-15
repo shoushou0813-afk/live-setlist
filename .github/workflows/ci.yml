@@ -1,0 +1,47 @@
+# CI（継続的インテグレーション）：push やプルリクエストのたびに、GitHub 上でテストを自動で実行する。
+# テストを走らせ忘れたまま壊れたコードが main に入るのを防ぐ。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Flutter 版（flutter/）
+  flutter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.50.0 # 手元で動作を確認した版にそろえる
+          cache: true
+      - name: パッケージを取得
+        run: flutter pub get
+      - name: 書式がそろっているか（dart format）
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: 静的解析（flutter analyze）
+        run: flutter analyze
+      - name: テスト（flutter test）
+        run: flutter test
+
+  # Web 版（React）
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: パッケージを取得
+        run: npm ci
+      - name: テスト（Vitest）
+        run: npm test
+      - name: 型チェックとビルド
+        run: npm run build
